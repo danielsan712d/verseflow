@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>VerseFlow - Universal Device Update</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600&family=Lora:ital@1&family=Pacifico&family=Playfair+Display:ital,wght@1,600&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --primary-teal: #7FB3B3;
+            --dark-overlay: rgba(0, 0, 0, 0.55);
+            --card-bg: rgba(255, 255, 255, 0.95);
+            --text-main: #333;
+            --text-sub: #555;
+            --modal-bg: #f9f9f9;
+            --bg-outer: #121212;
+            --verse-font: 'Georgia', serif; 
+        }
+
+        body.dark-mode {
+            --card-bg: rgba(30, 30, 30, 0.95);
+            --text-main: #f5f5f5;
+            --text-sub: #ccc;
+            --modal-bg: #1e1e1e;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Roboto', sans-serif; }
+
+        body, html { 
+            height: 100%; 
+            width: 100%;
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            background-color: var(--bg-outer); 
+            overflow: hidden; 
+        }
+
+        /* SMARTPHONE LAYOUT (iPhone, Pixel, Samsung) */
+        .app-container {
+            width: 100vw; 
+            height: 100dvh; 
+            position: relative; 
+            overflow: hidden;
+            background-size: cover; 
+            background-position: center; 
+            transition: background-image 0.5s ease;
+            display: flex; 
+            flex-direction: column;
+            border-radius: 0px; 
+        }
+
+        /* DESKTOP LAYOUT (Mac, Windows, iPad) */
+        @media (min-width: 768px) {
+            .app-container { 
+                max-width: 400px; 
+                height: 85vh; 
+                max-height: 850px; 
+                border-radius: 40px; 
+                box-shadow: 0 20px 50px rgba(0,0,0,0.8); 
+                border: 8px solid #1a1a1a; 
+            }
+        }
+
+        .overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: var(--dark-overlay); z-index: 1; }
+        .content { position: relative; z-index: 2; height: 100%; display: flex; flex-direction: column; padding: 20px; justify-content: space-between; }
+        .header { display: flex; justify-content: space-between; align-items: center; color: white; padding-top: 10px;}
+        .icon-btn { background: none; border: none; color: white; font-size: 22px; cursor: pointer; padding: 8px; transition: 0.2s; }
+        .streak-pill { background: rgba(255, 255, 255, 0.2); padding: 6px 12px; border-radius: 20px; font-weight: bold; font-size: 14px; backdrop-filter: blur(5px); }
+
+        .verse-container { text-align: center; margin: auto 0; padding: 20px; color: white;}
+        .verse-text { 
+            font-family: var(--verse-font); 
+            font-size: clamp(22px, 6vw, 30px); 
+            line-height: 1.4; 
+            margin-bottom: 16px; 
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8); 
+            transition: font-family 0.3s; 
+        }
+        .verse-ref { font-size: clamp(16px, 4vw, 18px); font-weight: 600; color: #FFD580; text-shadow: 1px 1px 3px rgba(0,0,0,0.8); }
+        
+        .verse-actions { margin-top: 20px; display: flex; justify-content: center; gap: 15px; }
+        .pill-btn { background: rgba(255,255,255,0.2); border: 1px solid white; color: white; padding: 8px 16px; border-radius: 20px; cursor: pointer; backdrop-filter: blur(4px); font-weight: 600; }
+        .pill-btn:active { background: rgba(255,255,255,0.4); }
+
+        .feature-menu {
+            display: flex; gap: 12px; overflow-x: auto; padding-bottom: 10px; margin-bottom: 10px;
+            scrollbar-width: none; 
+            width: 100%;
+        }
+        .feature-menu::-webkit-scrollbar { display: none; } 
+        .menu-btn {
+            min-width: 80px; background: var(--card-bg); color: var(--text-main); border: none;
+            padding: 12px; border-radius: 16px; display: flex; flex-direction: column; align-items: center; gap: 8px;
+            font-size: 12px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        }
+
+        .modal {
+            position: absolute; bottom: -100%; left: 0; right: 0; height: 75%;
+            background: var(--modal-bg); color: var(--text-main); border-top-left-radius: 32px; border-top-right-radius: 32px;
+            z-index: 10; padding: 24px; transition: bottom 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            box-shadow: 0 -5px 20px rgba(0,0,0,0.5); overflow-y: auto;
+        }
+        .modal.open { bottom: 0; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; border-bottom: 1px solid var(--text-sub); padding-bottom: 10px; }
+        .modal-close { font-size: 28px; cursor: pointer; color: var(--text-sub); }
+        
+        .list-item { padding: 12px 0; border-bottom: 1px solid rgba(136,136,136,0.2); }
+        .action-btn { background: var(--primary-teal); border: none; padding: 12px; border-radius: 12px; color: white; font-weight: 600; cursor: pointer; width: 100%; margin-top: 10px; }
+        .action-btn.secondary { background: #4A6B6B; }
+
+        textarea, input[type="text"] { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #ccc; background: var(--card-bg); color: var(--text-main); margin-top: 8px; }
+        .bg-thumbnails, .font-thumbnails { display: flex; gap: 8px; overflow-x: auto; padding: 10px 0; }
+        .bg-thumb { min-width: 45px; height: 45px; border-radius: 8px; cursor: pointer; border: 2px solid transparent; background-size: cover; }
+        .bg-thumb.active { border-color: var(--primary-teal); }
+        .font-thumb { padding: 8px 16px; border-radius: 8px; border: 1px solid #ccc; white-space: nowrap; cursor: pointer; }
+        
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    </style>
+</head>
+<body>
+
+    <div class="app-container" id="appBg" style="background-image: url('https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=500&q=80');">
+        <div class="overlay"></div>
+        
+        <div class="content">
+            <div class="header">
+                <button class="icon-btn" onclick="openModal('settingsModal')"><i class="fas fa-gear"></i></button>
+                <div class="streak-pill"><i class="fas fa-fire" style="color:#FFA500"></i> <span id="streakCount">0</span> Days</div>
+                <button class="icon-btn" onclick="shareNative()"><i class="fas fa-arrow-up-from-bracket"></i></button>
+            </div>
+
+            <div class="verse-container">
+                <p class="verse-text" id="verseDisplay">"I have told you these things, so that in me you may have peace. In this world you will have trouble. But take heart! I have overcome the world."</p>
+                <p class="verse-ref" id="referenceDisplay">John 16:33</p>
+                
+                <div class="verse-actions">
+                    <button class="pill-btn" onclick="saveVerse()" id="likeBtn"><i class="far fa-heart"></i> Like</button>
+                </div>
+            </div>
+
+            <div class="feature-menu">
+                <button class="menu-btn" onclick="openModal('moodModal')"><i class="fas fa-face-smile" style="font-size:20px; color:#FFD580;"></i> Moods</button>
+                <button class="menu-btn" onclick="openModal('journalModal')"><i class="fas fa-book" style="font-size:20px; color:#7FB3B3;"></i> Journal</button>
+                <button class="menu-btn" onclick="openGameModal()"><i class="fas fa-gamepad" style="font-size:20px; color:#FF6B6B;"></i> Game</button>
+                <button class="menu-btn" onclick="openModal('plansModal')"><i class="fas fa-map-signs" style="font-size:20px; color:#4ECDC4;"></i> Plans</button>
+                <button class="menu-btn" onclick="openSavedModal()"><i class="fas fa-bookmark" style="font-size:20px; color:#D4A5A5;"></i> Saved</button>
+            </div>
+        </div>
+
+        <div class="modal" id="settingsModal">
+            <div class="modal-header"><h2>Settings</h2><span class="modal-close" onclick="closeModal('settingsModal')">&times;</span></div>
+            
+            <div class="list-item">
+                <strong>Themes</strong><br>
+                <button class="action-btn secondary" onclick="toggleDarkMode()">Toggle Light/Dark Mode</button>
+            </div>
+
+            <div class="list-item">
+                <strong>Typography (Fonts)</strong>
+                <div class="font-thumbnails">
+                    <div class="font-thumb" style="font-family:'Georgia'" onclick="changeFont('Georgia')">Classic</div>
+                    <div class="font-thumb" style="font-family:'Pacifico'" onclick="changeFont('Pacifico')">Cursive</div>
+                    <div class="font-thumb" style="font-family:'Roboto'" onclick="changeFont('Roboto')">Modern</div>
+                    <div class="font-thumb" style="font-family:'Playfair Display'" onclick="changeFont('Playfair Display')">Elegant</div>
+                    <div class="font-thumb" style="font-family:'Caveat'" onclick="changeFont('Caveat')">Handwritten</div>
+                </div>
+            </div>
+
+            <div class="list-item">
+                <strong>Backgrounds (10 Options)</strong>
+                <div class="bg-thumbnails" id="bgContainer"></div>
+            </div>
+
+            <div class="list-item">
+                <strong>Use Your Own Image</strong>
+                <input type="file" id="customBgUpload" accept="image/*" style="margin-top:10px;">
+            </div>
+        </div>
+
+        <div class="modal" id="moodModal">
+            <div class="modal-header"><h2>How are you feeling?</h2><span class="modal-close" onclick="closeModal('moodModal')">&times;</span></div>
+            <div class="grid-2">
+                <button class="action-btn" onclick="setMoodVerse('anxious')">😰 Anxious</button>
+                <button class="action-btn" onclick="setMoodVerse('sad')">😔 Sad</button>
+                <button class="action-btn" onclick="setMoodVerse('angry')">😡 Angry</button>
+                <button class="action-btn" onclick="setMoodVerse('grateful')">🤩 Grateful</button>
+                <button class="action-btn" onclick="setMoodVerse('tired')">🥱 Tired</button>
+                <button class="action-btn" onclick="setMoodVerse('lonely')">🚶 Lonely</button>
+            </div>
+            <button class="action-btn secondary" style="margin-top: 15px;" onclick="clearMood()">🔄 Reset to Daily Verse</button>
+        </div>
+
+        <div class="modal" id="journalModal">
+            <div class="modal-header"><h2>Private Journal</h2><span class="modal-close" onclick="closeModal('journalModal')">&times;</span></div>
+            <p style="font-size:14px; color:var(--text-sub);">What is God teaching you today?</p>
+            <textarea id="journalEntry" rows="5" placeholder="Write your thoughts here..."></textarea>
+            <button class="action-btn" onclick="saveJournal()">Save Entry</button>
+            <div id="pastJournals" style="margin-top:20px;"></div>
+        </div>
+
+        <div class="modal" id="gameModal">
+            <div class="modal-header"><h2>Memorizer Game</h2><span class="modal-close" onclick="closeModal('gameModal')">&times;</span></div>
+            <p style="margin-bottom:15px;">Fill in the missing words!</p>
+            <div id="gameContent" style="line-height: 2; font-size: 18px;"></div>
+            <button class="action-btn" onclick="checkGame()">Check Answers</button>
+            <p id="gameResult" style="margin-top:10px; font-weight:bold;"></p>
+        </div>
+
+        <div class="modal" id="plansModal">
+            <div class="modal-header"><h2>Reading Plans</h2><span class="modal-close" onclick="closeModal('plansModal')">&times;</span></div>
+            <div class="list-item">
+                <div><strong>Finding Peace (3 Days)</strong><br><small>Verses to calm an anxious mind.</small></div>
+                <button class="pill-btn" style="background:var(--primary-teal); border:none;" onclick="startPlan('peace')">Start</button>
+            </div>
+            <div class="list-item">
+                <div><strong>Building Strength (3 Days)</strong><br><small>Verses for courage.</small></div>
+                <button class="pill-btn" style="background:var(--primary-teal); border:none;" onclick="startPlan('strength')">Start</button>
+            </div>
+        </div>
+
+        <div class="modal" id="savedModal">
+            <div class="modal-header"><h2>Saved Verses</h2><span class="modal-close" onclick="closeModal('savedModal')">&times;</span></div>
+            <input type="text" id="searchSaved" placeholder="🔍 Search tags or words..." onkeyup="renderSavedVerses()">
+            <div id="savedVersesList" style="margin-top:15px;"></div>
+        </div>
+
+    </div>
+
+    <script>
+        const dailyVerseText = '"I have told you these things, so that in me you may have peace. In this world you will have trouble. But take heart! I have overcome the world."';
+        const dailyVerseRef = 'John 16:33';
+
+        let currentVerseText = dailyVerseText;
+        let currentVerseRef = dailyVerseRef;
+
+        const backgrounds = [
+            'https://images.unsplash.com/photo-1506744038136-46273834b3fb',
+            'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b',
+            'https://images.unsplash.com/photo-1501854140801-50d01698950b',
+            'https://images.unsplash.com/photo-1518173946687-a4c8892bbd9f',
+            'https://images.unsplash.com/photo-1472214103451-9374bd1c798e',
+            'https://images.unsplash.com/photo-1444464666168-49b628800582',
+            'https://images.unsplash.com/photo-1433086966358-54859d0ed716',
+            'https://images.unsplash.com/photo-1475924156734-496f6cac6ec1',
+            'https://images.unsplash.com/photo-1534447677768-be436bb09401',
+            'https://images.unsplash.com/photo-1490682143684-1436ce2a13b8'
+        ];
+
+        const bgContainer = document.getElementById('bgContainer');
+        backgrounds.forEach(url => {
+            const thumb = document.createElement('div');
+            thumb.className = 'bg-thumb';
+            thumb.style.backgroundImage = `url('${url}?auto=format&fit=crop&w=80&q=80')`;
+            thumb.onclick = () => changeBackground(`${url}?auto=format&fit=crop&w=500&q=80`);
+            bgContainer.appendChild(thumb);
+        });
+
+        function changeBackground(url) {
+            document.getElementById('appBg').style.backgroundImage = `url('${url}')`;
+            localStorage.setItem('verseFlowBg', url);
+        }
+
+        document.getElementById('customBgUpload').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            const reader = new FileReader();
+            reader.onloadend = function() { changeBackground(reader.result); }
+            if (file) reader.readAsDataURL(file);
+        });
+
+        function openModal(id) { document.getElementById(id).classList.add('open'); }
+        function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+        function changeFont(fontFamily) {
+            document.documentElement.style.setProperty('--verse-font', fontFamily);
+            localStorage.setItem('verseFlowFont', fontFamily);
+        }
+
+        function toggleDarkMode() {
+            document.body.classList.toggle('dark-mode');
+            localStorage.setItem('verseFlowTheme', document.body.classList.contains('dark-mode') ? 'dark' : 'light');
+        }
+
+        let savedVerses = JSON.parse(localStorage.getItem('savedVerses')) || [];
+
+        function saveVerse() {
+            const btn = document.getElementById('likeBtn');
+            btn.innerHTML = '<i class="fas fa-heart" style="color:red;"></i> Liked';
+            savedVerses.push({ text: currentVerseText, ref: currentVerseRef });
+            localStorage.setItem('savedVerses', JSON.stringify(savedVerses));
+            alert("Saved to your collection!");
+        }
+
+        function openSavedModal() {
+            renderSavedVerses();
+            openModal('savedModal');
+        }
+
+        function renderSavedVerses() {
+            const query = document.getElementById('searchSaved').value.toLowerCase();
+            const list = document.getElementById('savedVersesList');
+            list.innerHTML = '';
+            
+            savedVerses.forEach(v => {
+                if(v.text.toLowerCase().includes(query) || v.ref.toLowerCase().includes(query)) {
+                    list.innerHTML += `<div class="list-item" style="display:block;">
+                        <p style="font-family:var(--verse-font); font-size:16px;">${v.text}</p>
+                        <small style="color:var(--primary-teal);">${v.ref}</small>
+                    </div>`;
+                }
+            });
+            if(list.innerHTML === '') list.innerHTML = '<p>No saved verses found.</p>';
+        }
+
+        let journalEntries = JSON.parse(localStorage.getItem('journalEntries')) || [];
+
+        function saveJournal() {
+            const text = document.getElementById('journalEntry').value;
+            if(!text) return;
+            journalEntries.unshift({ date: new Date().toLocaleDateString(), text: text });
+            localStorage.setItem('journalEntries', JSON.stringify(journalEntries));
+            document.getElementById('journalEntry').value = '';
+            renderJournal();
+        }
+
+        function renderJournal() {
+            const list = document.getElementById('pastJournals');
+            list.innerHTML = '';
+            journalEntries.forEach(entry => {
+                list.innerHTML += `<div class="list-item" style="display:block;">
+                    <strong>${entry.date}</strong><br><p style="margin-top:5px; font-size:14px;">${entry.text}</p>
+                </div>`;
+            });
+        }
+
+        const moodData = {
+            anxious: { t: '"Do not be anxious about anything, but in every situation, by prayer and petition, with thanksgiving, present your requests to God."', r: 'Philippians 4:6' },
+            sad: { t: '"The Lord is close to the brokenhearted and saves those who are crushed in spirit."', r: 'Psalm 34:18' },
+            angry: { t: '"A gentle answer turns away wrath, but a harsh word stirs up anger."', r: 'Proverbs 15:1' },
+            grateful: { t: '"Give thanks to the Lord, for he is good; his love endures forever."', r: 'Psalm 107:1' },
+            tired: { t: '"Come to me, all you who are weary and burdened, and I will give you rest."', r: 'Matthew 11:28' },
+            lonely: { t: '"Be strong and courageous... for the Lord your God goes with you; he will never leave you nor forsake you."', r: 'Deuteronomy 31:6' }
+        };
+
+        function setMoodVerse(mood) {
+            currentVerseText = moodData[mood].t;
+            currentVerseRef = moodData[mood].r;
+            updateScreen();
+            closeModal('moodModal');
+        }
+
+        function clearMood() {
+            currentVerseText = dailyVerseText;
+            currentVerseRef = dailyVerseRef;
+            updateScreen();
+            closeModal('moodModal');
+        }
+
+        let gameWords = [];
+        let hiddenIndexes = [];
+
+        function openGameModal() {
+            const content = document.getElementById('gameContent');
+            content.innerHTML = '';
+            gameWords = currentVerseText.split(' ');
+            hiddenIndexes = [];
+            
+            for(let i=0; i<gameWords.length; i++) {
+                if(Math.random() < 0.3 && gameWords[i].length > 2) {
+                    hiddenIndexes.push(i);
+                    content.innerHTML += `<input type="text" id="guess_${i}" style="width:60px; padding:4px; margin:2px; display:inline-block;" placeholder="?"> `;
+                } else {
+                    content.innerHTML += gameWords[i] + ' ';
+                }
+            }
+            document.getElementById('gameResult').innerText = '';
+            openModal('gameModal');
+        }
+
+        function checkGame() {
+            let win = true;
+            hiddenIndexes.forEach(index => {
+                const guess = document.getElementById(`guess_${index}`).value.replace(/[.,!?"]/g, '');
+                const actual = gameWords[index].replace(/[.,!?"]/g, '');
+                if(guess.toLowerCase() !== actual.toLowerCase()) {
+                    win = false;
+                    document.getElementById(`guess_${index}`).style.borderColor = 'red';
+                } else {
+                    document.getElementById(`guess_${index}`).style.borderColor = 'green';
+                }
+            });
+            const result = document.getElementById('gameResult');
+            if(win) {
+                result.style.color = 'green'; result.innerText = "Perfect! You memorized it!";
+                confetti();
+            } else {
+                result.style.color = 'red'; result.innerText = "Keep trying! Check the red boxes.";
+            }
+        }
+
+        const plans = {
+            peace: [ { t: '"Peace I leave with you; my peace I give you."', r: 'John 14:27'}, {t: '"The Lord gives strength to his people; the Lord blesses his people with peace."', r: 'Psalm 29:11'}],
+            strength: [ { t: '"The joy of the Lord is your strength."', r: 'Nehemiah 8:10'}, {t: '"I can do all this through him who gives me strength."', r: 'Philippians 4:13'}]
+        };
+
+        function startPlan(planId) {
+            currentVerseText = plans[planId][0].t;
+            currentVerseRef = plans[planId][0].r;
+            updateScreen();
+            closeModal('plansModal');
+            alert("Started Day 1 of " + planId + " plan!");
+        }
+
+        function calculateStreak() {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0); 
+
+            let lastOpenedStr = localStorage.getItem('verseFlowLastOpened');
+            let currentStreak = parseInt(localStorage.getItem('verseFlowStreak')) || 0;
+
+            if (!lastOpenedStr) {
+                currentStreak = 1;
+                localStorage.setItem('verseFlowLastOpened', today.getTime().toString());
+                localStorage.setItem('verseFlowStreak', currentStreak);
+            } else {
+                const lastOpenedDate = new Date(parseInt(lastOpenedStr));
+                const diffTime = Math.abs(today - lastOpenedDate);
+                const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+
+                if (diffDays === 1) {
+                    currentStreak += 1;
+                    localStorage.setItem('verseFlowLastOpened', today.getTime().toString());
+                    localStorage.setItem('verseFlowStreak', currentStreak);
+                    
+                    if (currentStreak === 10 || currentStreak === 50 || currentStreak === 100) {
+                        setTimeout(() => confetti(), 500);
+                    }
+                } else if (diffDays > 1) {
+                    currentStreak = 1;
+                    localStorage.setItem('verseFlowLastOpened', today.getTime().toString());
+                    localStorage.setItem('verseFlowStreak', currentStreak);
+                }
+            }
+
+            document.getElementById('streakCount').innerText = currentStreak;
+        }
+
+        function updateScreen() {
+            document.getElementById('verseDisplay').innerText = currentVerseText;
+            document.getElementById('referenceDisplay').innerText = currentVerseRef;
+            document.getElementById('likeBtn').innerHTML = '<i class="far fa-heart"></i> Like'; 
+        }
+
+        function shareNative() {
+            if (navigator.share) {
+                navigator.share({ title: 'VerseFlow', text: `${currentVerseText}\n- ${currentVerseRef}`, url: window.location.href });
+            } else {
+                alert(`Copied:\n${currentVerseText} - ${currentVerseRef}`);
+            }
+        }
+
+        window.onload = () => {
+            if(localStorage.getItem('verseFlowTheme') === 'dark') toggleDarkMode();
+            if(localStorage.getItem('verseFlowFont')) changeFont(localStorage.getItem('verseFlowFont'));
+            if(localStorage.getItem('verseFlowBg')) changeBackground(localStorage.getItem('verseFlowBg'));
+            
+            renderJournal();
+            calculateStreak();
+        };
+    </script>
+</body>
+</html>
