@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>VerseFlow - Universal Dynamic Layout</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600&family=Comic+Neue:wght@700&family=Fredoka+One&family=Lora:ital@1&family=Montserrat:wght@700&family=Pacifico&family=Playfair+Display:ital,wght@1,600&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --primary-teal: #7FB3B3;
+            --dark-overlay: rgba(0, 0, 0, 0.55);
+            --card-bg: rgba(255, 255, 255, 0.95);
+            --text-main: #333;
+            --text-sub: #555;
+            --modal-bg: #f9f9f9;
+            --bg-outer: #121212;
+            --verse-font: 'Georgia', serif; 
+        }
+
+        body.dark-mode {
+            --card-bg: rgba(30, 30, 30, 0.95);
+            --text-main: #f5f5f5;
+            --text-sub: #ccc;
+            --modal-bg: #1e1e1e;
+        }
+
+        body.kids-active {
+            --primary-teal: #FF6B6B;
+            --dark-overlay: rgba(0, 0, 0, 0.2);
+            --card-bg: rgba(255, 255, 255, 0.98);
+            --text-main: #222;
+            --text-sub: #444;
+            --modal-bg: #FFF9E6;
+            --bg-outer: #FFD93D;
+            --verse-font: 'Comic Neue', cursive;
+        }
+
+        body.kids-active .menu-btn {
+            background: #FFFAEC;
+            border: 2px solid #FF9F43;
+            border-radius: 20px;
+        }
+
+        body.kids-active .action-btn {
+            background: #4ECDC4;
+            border-radius: 20px;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Roboto', sans-serif; }
+
+        body, html { 
+            height: 100dvh; 
+            width: 100vw;
+            background-color: var(--bg-outer); 
+            overflow: hidden; 
+        }
+
+        .app-container {
+            width: 100vw; 
+            height: 100dvh; 
+            position: relative; 
+            overflow: hidden;
+            background-size: cover; 
+            background-position: center; 
+            transition: background-image 0.5s ease;
+            display: flex; 
+            flex-direction: column;
+        }
+
+        .overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: var(--dark-overlay); z-index: 1; }
+        
+        .content { 
+            position: relative; 
+            z-index: 2; 
+            height: 100%; 
+            display: flex; 
+            flex-direction: column; 
+            padding: clamp(20px, 5vw, 50px); 
+            justify-content: space-between; 
+        }
+        
+        .header { display: flex; justify-content: space-between; align-items: center; color: white; width: 100%; }
+        .icon-btn { background: none; border: none; color: white; font-size: clamp(24px, 4vw, 36px); cursor: pointer; padding: 10px; transition: 0.2s; }
+        .streak-pill { background: rgba(255, 255, 255, 0.2); padding: 10px 20px; border-radius: 25px; font-weight: bold; font-size: clamp(14px, 2vw, 18px); backdrop-filter: blur(5px); }
+
+        .verse-container { 
+            text-align: center; 
+            margin: auto 0; 
+            padding: 20px; 
+            color: white; 
+            width: 100%;
+            max-width: 900px; 
+            align-self: center;
+        }
+        .verse-text { 
+            font-family: var(--verse-font); 
+            font-size: clamp(24px, 4.5vw, 46px); 
+            line-height: 1.5; 
+            margin-bottom: 24px; 
+            text-shadow: 2px 2px 6px rgba(0,0,0,0.85); 
+            transition: font-family 0.3s; 
+        }
+        .verse-ref { font-size: clamp(18px, 2.5vw, 26px); font-weight: 600; color: #FFD580; text-shadow: 1px 1px 3px rgba(0,0,0,0.8); }
+        
+        .verse-actions { margin-top: 30px; display: flex; justify-content: center; gap: 20px; }
+        .pill-btn { background: rgba(255,255,255,0.2); border: 1px solid white; color: white; padding: 12px 24px; border-radius: 30px; cursor: pointer; backdrop-filter: blur(4px); font-weight: 600; font-size: clamp(14px, 2vw, 18px); }
+
+        .menu-wrapper { width: 100%; max-width: 800px; align-self: center; }
+
+        .feature-menu {
+            display: flex; gap: 16px; overflow-x: auto; padding-bottom: 10px; margin-bottom: 10px;
+            scrollbar-width: none; 
+            width: 100%;
+            justify-content: flex-start;
+        }
+        @media (min-width: 768px) {
+            .feature-menu { justify-content: center; gap: 24px; }
+        }
+        .feature-menu::-webkit-scrollbar { display: none; } 
+        
+        .menu-btn {
+            min-width: 100px; background: var(--card-bg); color: var(--text-main); border: none;
+            padding: 16px; border-radius: 20px; display: flex; flex-direction: column; align-items: center; gap: 10px;
+            font-size: 14px; font-weight: bold; cursor: pointer; box-shadow: 0 6px 16px rgba(0,0,0,0.25);
+        }
+
+        .modal {
+            position: absolute; bottom: -100%; left: 0; right: 0; height: 80%;
+            background: var(--modal-bg); color: var(--text-main); border-top-left-radius: 40px; border-top-right-radius: 40px;
+            z-index: 10; padding: clamp(24px, 5vw, 45px); transition: bottom 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.12);
+            box-shadow: 0 -8px 30px rgba(0,0,0,0.5); overflow-y: auto;
+            display: flex; flex-direction: column;
+        }
+        .modal-content-wrapper { max-width: 700px; width: 100%; align-self: center; }
+        .modal.open { bottom: 0; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; border-bottom: 1px solid rgba(136,136,136,0.3); padding-bottom: 14px; }
+        .modal-close { font-size: 36px; cursor: pointer; color: var(--text-sub); }
+        
+        .list-item { padding: 18px 0; border-bottom: 1px solid rgba(136,136,136,0.2); }
+        .saved-item-row { display: flex; justify-content: space-between; align-items: center; gap: 15px; }
+        .saved-text-block { flex: 1; }
+        .remove-btn { background: none; border: none; color: #ff4d4d; font-size: 20px; cursor: pointer; padding: 8px; transition: transform 0.2s; }
+        .remove-btn:active { transform: scale(0.85); }
+        
+        .action-btn { background: var(--primary-teal); border: none; padding: 16px; border-radius: 16px; color: white; font-weight: 600; cursor: pointer; width: 100%; margin-top: 12px; font-size: 16px; }
+        .action-btn.secondary { background: #4A6B6B; }
+
+        textarea, input[type="text"] { width: 100%; padding: 16px; border-radius: 12px; border: 1px solid #ccc; background: var(--card-bg); color: var(--text-main); margin-top: 10px; font-size: 16px; }
+        .bg-thumbnails, .font-thumbnails { display: flex; gap: 12px; overflow-x: auto; padding: 14px 0; }
+        .bg-thumb { min-width: 65px; height: 65px; border-radius: 12px; cursor: pointer; border: 2px solid transparent; background-size: cover; background-position: center; }
+        .bg-thumb.active { border-color: var(--primary-teal); }
+        .font-thumb { padding: 12px 20px; border-radius: 12px; border: 1px solid #ccc; white-space: nowrap; cursor: pointer; font-size: 15px; }
+        
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+        .game-input { width: 90px; padding: 8px; margin: 4px; display: inline-block; text-align: center; border-radius: 10px; border: 1px solid #ccc; font-size: 18px; }
+    </style>
+</head>
+<body>
+
+    <div class="app-container" id="appBg" style="background-image: url('https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1400&q=80');">
+        <div class="overlay"></div>
+        
+        <div class="content">
+            <div class="header">
+                <button class="icon-btn" onclick="openModal('settingsModal')"><i class="fas fa-gear"></i></button>
+                <div class="streak-pill" id="mainStreakDisplay"><i class="fas fa-fire" style="color:#FFA500"></i> <span id="streakCount">0</span> Days</div>
+                <button class="icon-btn" onclick="shareNative()"><i class="fas fa-arrow-up-from-bracket"></i></button>
+            </div>
+
+            <div class="verse-container">
+                <p class="verse-text" id="verseDisplay">"I have told you these things, so that in me you may have peace. In this world you will have trouble. But take heart! I have overcome the world."</p>
+                <p class="verse-ref" id="referenceDisplay">John 16:33</p>
+                
+                <div class="verse-actions">
+                    <button class="pill-btn" onclick="toggleLikeVerse()" id="likeBtn"><i class="far fa-heart"></i> Like</button>
+                </div>
+            </div>
+
+            <div class="menu-wrapper">
+                <div class="feature-menu" id="standardMenu">
+                    <button class="menu-btn" onclick="openModal('moodModal')"><i class="fas fa-face-smile" style="font-size:24px; color:#FFD580;"></i> Moods</button>
+                    <button class="menu-btn" onclick="openModal('journalModal')"><i class="fas fa-book" style="font-size:24px; color:#7FB3B3;"></i> Journal</button>
+                    <button class="menu-btn" onclick="openModal('gamesListModal')"><i class="fas fa-gamepad" style="font-size:24px; color:#FF6B6B;"></i> Games</button>
+                    <button class="menu-btn" onclick="openModal('plansModal')"><i class="fas fa-map-signs" style="font-size:24px; color:#4ECDC4;"></i> Plans</button>
+                    <button class="menu-btn" onclick="openSavedModal()"><i class="fas fa-bookmark" style="font-size:24px; color:#D4A5A5;"></i> Saved</button>
+                </div>
+
+                <div class="feature-menu" id="kidsMenu" style="display: none;">
+                    <button class="menu-btn" onclick="openModal('moodModal')"><i class="fas fa-laugh-beam" style="font-size:24px; color:#FF8A8A;"></i> Moods</button>
+                    <button class="menu-btn" onclick="openModal('kidsGamesModal')"><i class="fas fa-star" style="font-size:24px; color:#FFD93D;"></i> Fun Games</button>
+                    <button class="menu-btn" onclick="openSavedModal()"><i class="fas fa-heart" style="font-size:24px; color:#FF85B3;"></i> Favorites</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal" id="settingsModal">
+            <div class="modal-content-wrapper">
+                <div class="modal-header"><h2>Settings</h2><span class="modal-close" onclick="closeModal('settingsModal')">&times;</span></div>
+                
+                <div class="list-item" style="background: #FFF3CD; padding: 14px; border-radius: 16px; margin-bottom: 14px; color: #222;">
+                    <strong>🎈 Interface Configuration</strong><br>
+                    <button class="action-btn" style="background:#FF9F43; margin-top:6px;" onclick="toggleKidsMode()">Toggle Kids Mode</button>
+                </div>
+
+                <div class="list-item">
+                    <strong>Themes</strong><br>
+                    <button class="action-btn secondary" onclick="toggleDarkMode()">Toggle Light/Dark Mode</button>
+                </div>
+
+                <div class="list-item">
+                    <strong>Typography (Fonts)</strong>
+                    <div class="font-thumbnails">
+                        <div class="font-thumb" style="font-family:'Georgia'" onclick="changeFont('Georgia')">Classic</div>
+                        <div class="font-thumb" style="font-family:'Pacifico'" onclick="changeFont('Pacifico')">Cursive</div>
+                        <div class="font-thumb" style="font-family:'Roboto'" onclick="changeFont('Roboto')">Modern</div>
+                        <div class="font-thumb" style="font-family:'Playfair Display'" onclick="changeFont('Playfair Display')">Elegant</div>
+                        <div class="font-thumb" style="font-family:'Caveat'" onclick="changeFont('Caveat')">Handwritten</div>
+                        <div class="font-thumb" style="font-family:'Comic Neue'" onclick="changeFont('Comic Neue')">Friendly</div>
+                        <div class="font-thumb" style="font-family:'Montserrat'" onclick="changeFont('Montserrat')">Bold Tech</div>
+                    </div>
+                </div>
+
+                <div class="list-item">
+                    <strong>Backgrounds</strong>
+                    <div class="bg-thumbnails" id="bgContainer"></div>
+                </div>
+
+                <div class="list-item">
+                    <strong>Use Your Own Image</strong>
+                    <input type="file" id="customBgUpload" accept="image/*" style="margin-top:10px;">
+                </div>
+            </div>
+        </div>
+
+        <div class="modal" id="moodModal">
+            <div class="modal-content-wrapper">
+                <div class="modal-header"><h2>How are you feeling?</h2><span class="modal-close" onclick="closeModal('moodModal')">&times;</span></div>
+                <div class="grid-2">
+                    <button class="action-btn" onclick="setMoodVerse('anxious')">Anxious</button>
+                    <button class="action-btn" onclick="setMoodVerse('sad')">Sad</button>
+                    <button class="action-btn" onclick="setMoodVerse('angry')">Angry</button>
+                    <button class="action-btn" onclick="setMoodVerse('grateful')">Grateful</button>
+                    <button class="action-btn" onclick="setMoodVerse('tired')">Tired</button>
+                    <button class="action-btn" onclick="setMoodVerse('lonely')">Lonely</button>
+                </div>
+                <button class="action-btn secondary" style="margin-top: 15px;" onclick="clearMood()">🔄 Reset to Base Verse</button>
+            </div>
+        </div>
+
+        <div class="modal" id="journalModal">
+            <div class="modal-content-wrapper">
+                <div class="modal-header"><h2>Private Journal</h2><span class="modal-close" onclick="closeModal('journalModal')">&times;</span></div>
+                <textarea id="journalEntry" rows="5" placeholder="Write your daily observations here..."></textarea>
+                <button class="action-btn" onclick="saveJournal()">Save Entry</button>
+                <div id="pastJournals" style="margin-top:20px;"></div>
+            </div>
+        </div>
+
+        <div class="modal" id="gamesListModal">
+            <div class="modal-content-wrapper">
+                <div class="modal-header"><h2>Bible Training Games</h2><span class="modal-close" onclick="closeModal('gamesListModal')">&times;</span></div>
+                <button class="action-btn" style="margin-bottom:12px;" onclick="startStandardGame(1)">Game 1: Hidden Word Memorizer</button>
+                <button class="action-btn" style="margin-bottom:12px;" onclick="startStandardGame(2)">Game 2: Speed Type Challenge</button>
+                <button class="action-btn" onclick="startStandardGame(3)">Game 3: Word Assembler Layout</button>
+            </div>
+        </div>
+
+        <div class="modal" id="kidsGamesModal">
+            <div class="modal-content-wrapper">
+                <div class="modal-header"><h2>🎪 Fun Bible Games!</h2><span class="modal-close" onclick="closeModal('kidsGamesModal')">&times;</span></div>
+                <button class="action-btn" style="background:#FF9F43; margin-bottom:12px;" onclick="startKidsGame(1)">Game 1: Missing Word Matcher</button>
+                <button class="action-btn" style="background:#4ECDC4; margin-bottom:12px;" onclick="startKidsGame(2)">Game 2: Fun Letter Unscrambler</button>
+                <button class="action-btn" style="background:#A8E6CF;" onclick="startKidsGame(3)">Game 3: Kid Pop Picker</button>
+            </div>
+        </div>
+
+        <div class="modal" id="activeGameModal">
+            <div class="modal-content-wrapper">
+                <div class="modal-header"><h2 id="gameTitleDisplay">Game Mode</h2><span class="modal-close" onclick="closeModal('activeGameModal')">&times;</span></div>
+                <div id="gameArenaDescription" style="margin-bottom:15px; font-size:15px; color:var(--text-sub);"></div>
+                <div id="gamePlayground" style="line-height: 2; font-size: 18px; margin-bottom:15px;"></div>
+                <button class="action-btn" onclick="evaluateActiveGameEngine()">Submit Check</button>
+                <p id="gameFeedbackOutput" style="margin-top:15px; font-weight:bold;"></p>
+            </div>
+        </div>
+
+        <div class="modal" id="plansModal">
+            <div class="modal-content-wrapper">
+                <div class="modal-header"><h2>Themed Reading Plans</h2><span class="modal-close" onclick="closeModal('plansModal')">&times;</span></div>
+                <div id="plansDynamicContainer"></div>
+            </div>
+        </div>
+
+        <div class="modal" id="savedModal">
+            <div class="modal-content-wrapper">
+                <div class="modal-header"><h2>Saved Collection</h2><span class="modal-close" onclick="closeModal('savedModal')">&times;</span></div>
+                <input type="text" id="searchSaved" placeholder="Search collection..." onkeyup="renderSavedVerses()">
+                <div id="savedVersesList" style="margin-top:15px;"></div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        /* --- DATABASES & CONFIGURATION SETS --- */
+        let isKidsModeActive = false;
+        
+        const standardBaseText = '"I have told you these things, so that in me you may have peace. In this world you will have trouble. But take heart! I have overcome the world."';
+        const standardBaseRef = 'John 16:33';
+
+        const kidsBaseText = '"Children, obey your parents in everything, for this pleases the Lord."';
+        const kidsBaseRef = 'Colossians 3:20';
+
+        let currentVerseText = standardBaseText;
+        let currentVerseRef = standardBaseRef;
+        let activeSelectedGameID = 0;
+
+        const regularBackgrounds = [
+            'https://images.unsplash.com/photo-1506744038136-46273834b3fb',
+            'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b',
+            'https://images.unsplash.com/photo-1501854140801-50d01698950b',
+            'https://images.unsplash.com/photo-1518173946687-a4c8892bbd9f',
+            'https://images.unsplash.com/photo-1472214103451-9374bd1c798e',
+            'https://images.unsplash.com/photo-1444464666168-49b628800582',
+            'https://images.unsplash.com/photo-1433086966358-54859d0ed716',
+            'https://images.unsplash.com/photo-1475924156734-496f6cac6ec1',
+            'https://images.unsplash.com/photo-1534447677768-be436bb09401',
+            'https://images.unsplash.com/photo-1490682143684-1436ce2a13b8',
+            'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee',
+            'https://images.unsplash.com/photo-1441974231531-c6227db76b6e'
+        ];
+
+        const kidsBackgrounds = [
+            'https://images.unsplash.com/photo-1513151233558-d860c5398176',
+            'https://images.unsplash.com/photo-1531072955165-c7bb84311a76',
+            'https://images.unsplash.com/photo-1502082553048-f009c37129b9',
+            'https://images.unsplash.com/photo-1560421683-6856ea585c78',
+            'https://images.unsplash.com/photo-1447752875215-b2761acb3c5d',
+            'https://images.unsplash.com/photo-1579546929518-9e396f3cc809',
+            'https://images.unsplash.com/photo-1507525428034-b723cf961d3e',
+            'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05',
+            'https://images.unsplash.com/photo-1528459801416-a9e53bbf4e17',
+            'https://images.unsplash.com/photo-1550684848-fac1c5b4e853',
+            'https://images.unsplash.com/photo-1516628393069-5a9d7a356221',
+            'https://images.unsplash.com/photo-1501183638710-841dd1904471'
+        ];
+
+        const standardMoods = {
+            anxious: { t: '"Do not be anxious about anything, but in every situation present your requests to God."', r: 'Philippians 4:6' },
+            sad: { t: '"The Lord is close to the brokenhearted and saves those who are crushed in spirit."', r: 'Psalm 34:18' },
+            angry: { t: '"A gentle answer turns away wrath, but a harsh word stirs up anger."', r: 'Proverbs 15:1' },
+            grateful: { t: '"Give thanks to the Lord, for he is good; his love endures forever."', r: 'Psalm 107:1' },
+            tired: { t: '"Come to me, all you who are weary and burdened, and I will give you rest."', r: 'Matthew 11:28' },
+            lonely: { t: '"Be strong and courageous... the Lord your God will never leave you."', r: 'Deuteronomy 31:6' }
+        };
+
+        const kidsMoods = {
+            anxious: { t: '"When I am afraid, I will trust in you."', r: 'Psalm 56:3' },
+            sad: { t: '"He cares for you."', r: '1 Peter 5:7' },
+            angry: { t: '"Do not let the sun go down while you are still angry."', r: 'Ephesians 4:26' },
+            grateful: { t: '"Give thanks to the Lord, for he is good."', r: 'Psalm 106:1' },
+            tired: { t: '"He gives strength to the weary."', r: 'Isaiah 40:29' },
+            lonely: { t: '"I am with you always."', r: 'Matthew 28:20' }
+        };
+
+        const readingPlansDatabase = [
+            { id: 'peace', name: '1. Finding Inner Peace', desc: 'Calm your active anxieties.', v: '"Peace I leave with you; my peace I give you."', ref: 'John 14:27' },
+            { id: 'strength', name: '2. Building Courage', desc: 'Overcoming massive hardships.', v: '"I can do all things through Christ."', ref: 'Philippians 4:13' },
+            { id: 'faith', name: '3. Foundations of Faith', desc: 'Believing when things look dark.', v: '"Faith is confidence in what we hope for."', ref: 'Hebrews 11:1' },
+            { id: 'love', name: '4. Walking in Love', desc: 'Treating others with true patience.', v: '"Love is patient, love is kind."', ref: '1 Corinthians 13:4' },
+            { id: 'wisdom', name: '5. Seeking True Wisdom', desc: 'Making clean lifestyle choices.', v: '"The fear of the Lord is wisdom."', ref: 'Proverbs 9:10' },
+            { id: 'joy', name: '6. Choosing Everyday Joy', desc: 'Refocusing your mindset.', v: '"The joy of the Lord is your strength."', ref: 'Nehemiah 8:10' },
+            { id: 'patience', name: '7. Developing True Patience', desc: 'Waiting peacefully for doors to open.', v: '"Be still before the Lord and wait."', ref: 'Psalm 37:7' },
+            { id: 'healing', name: '8. Healing and Rest', desc: 'Restoring energy after long trials.', v: '"He heals the brokenhearted."', ref: 'Psalm 147:3' },
+            { id: 'purpose', name: '9. Uncovering Your Purpose', desc: 'Understanding your daily walk.', v: '"For I know the plans I have for you."', ref: 'Jeremiah 29:11' },
+            { id: 'forgive', name: '10. Extending Forgiveness', desc: 'Dropping bitter grudges instantly.', v: '"Be kind and compassionate, forgiving each other."', ref: 'Ephesians 4:32' },
+            { id: 'words', name: '11. Guiding Your Words', desc: 'Speaking life to those around you.', v: '"Let your conversation be full of grace."', ref: 'Colossians 4:6' },
+            { id: 'hope', name: '12. Radiant Future Hope', desc: 'Looking forward to great plans ahead.', v: '"Hope does not put us to shame."', ref: 'Romans 5:5' }
+        ];
+
+        /* --- DISPLAY MANAGER ENGINE --- */
+        function rebuildBackgroundThumbnails() {
+            const container = document.getElementById('bgContainer');
+            container.innerHTML = '';
+            const activeSet = isKidsModeActive ? kidsBackgrounds : regularBackgrounds;
+            
+            activeSet.forEach((url, index) => {
+                const thumb = document.createElement('div');
+                thumb.className = `bg-thumb ${index === 0 ? 'active' : ''}`;
+                thumb.style.backgroundImage = `url('${url}?auto=format&fit=crop&w=100&q=80')`;
+                thumb.onclick = () => {
+                    changeBackground(`${url}?auto=format&fit=crop&w=1400&q=80`);
+                    document.querySelectorAll('.bg-thumb').forEach(t => t.classList.remove('active'));
+                    thumb.classList.add('active');
+                };
+                container.appendChild(thumb);
+            });
+            changeBackground(`${activeSet[0]}?auto=format&fit=crop&w=1400&q=80`);
+        }
+
+        function toggleKidsMode() {
+            isKidsModeActive = !isKidsModeActive;
+            document.body.classList.toggle('kids-active', isKidsModeActive);
+            
+            if(isKidsModeActive) {
+                currentVerseText = kidsBaseText;
+                currentVerseRef = kidsBaseRef;
+                document.getElementById('standardMenu').style.display = 'none';
+                document.getElementById('kidsMenu').style.display = 'flex';
+                document.getElementById('mainStreakDisplay').style.background = '#FF9F43';
+                changeFont('Comic Neue');
+            } else {
+                currentVerseText = standardBaseText;
+                currentVerseRef = standardBaseRef;
+                document.getElementById('standardMenu').style.display = 'flex';
+                document.getElementById('kidsMenu').style.display = 'none';
+                document.getElementById('mainStreakDisplay').style.background = 'rgba(255,255,255,0.2)';
+                changeFont('Georgia');
+            }
+            rebuildBackgroundThumbnails();
+            updateScreen();
+            closeModal('settingsModal');
+        }
+
+        function changeBackground(url) {
+            document.getElementById('appBg').style.backgroundImage = `url('${url}')`;
+        }
+
+        document.getElementById('customBgUpload').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            const reader = new FileReader();
+            reader.onloadend = () => changeBackground(reader.result);
+            if (file) reader.readAsDataURL(file);
+        });
+
+        function openModal(id) { document.getElementById(id).classList.add('open'); }
+        function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+        function changeFont(fontFamily) { document.documentElement.style.setProperty('--verse-font', fontFamily); }
+        function toggleDarkMode() { document.body.classList.toggle('dark-mode'); }
+
+        function setMoodVerse(mood) {
+            const dataset = isKidsModeActive ? kidsMoods : standardMoods;
+            currentVerseText = dataset[mood].t;
+            currentVerseRef = dataset[mood].r;
+            updateScreen();
+            closeModal('moodModal');
+        }
+
+        function clearMood() {
+            currentVerseText = isKidsModeActive ? kidsBaseText : standardBaseText;
+            currentVerseRef = isKidsModeActive ? kidsBaseRef : standardBaseRef;
+            updateScreen();
+            closeModal('moodModal');
+        }
+
+        function generatePlansInterface() {
+            const container = document.getElementById('plansDynamicContainer');
+            container.innerHTML = '';
+            readingPlansDatabase.forEach(p => {
+                container.innerHTML += `<div class="list-item">
+                    <div><strong>${p.name}</strong><br><small>${p.desc}</small></div>
+                    <button class="pill-btn" style="background:var(--primary-teal); border:none;" onclick="loadPlanItem('${p.id}')">Start</button>
+                </div>`;
+            });
+        }
+
+        function loadPlanItem(planId) {
+            const planItem = readingPlansDatabase.find(p => p.id === planId);
+            currentVerseText = planItem.v;
+            currentVerseRef = planItem.ref;
+            updateScreen();
+            closeModal('plansModal');
+            alert(`Plan loaded successfully!`);
+        }
+
+        /* --- GAME ENGINE --- */
+        let referenceWordsArray = [];
+        let missingIndexesArray = [];
+
+        function startStandardGame(gameID) {
+            closeModal('gamesListModal');
+            activeSelectedGameID = gameID;
+            const playground = document.getElementById('gamePlayground');
+            document.getElementById('gameFeedbackOutput').innerText = '';
+            playground.innerHTML = '';
+
+            if(gameID === 1) {
+                document.getElementById('gameTitleDisplay').innerText = "Word Memorizer";
+                document.getElementById('gameArenaDescription').innerText = "Fill in the missing words accurately.";
+                referenceWordsArray = currentVerseText.split(' ');
+                missingIndexesArray = [];
+                for(let i=0; i<referenceWordsArray.length; i++) {
+                    if(Math.random() < 0.3 && referenceWordsArray[i].length > 2) {
+                        missingIndexesArray.push(i);
+                        playground.innerHTML += `<input type="text" class="game-input" id="std1_${i}" placeholder="?"> `;
+                    } else {
+                        playground.innerHTML += referenceWordsArray[i] + ' ';
+                    }
+                }
+            } else if(gameID === 2) {
+                document.getElementById('gameTitleDisplay').innerText = "Speed Type Challenge";
+                document.getElementById('gameArenaDescription').innerText = "Type the verse perfectly below:";
+                playground.innerHTML = `<p style="margin-bottom:10px; font-style:italic;">${currentVerseText}</p>
+                                         <textarea id="std2_input" rows="3" placeholder="Start typing matching text..."></textarea>`;
+            } else if(gameID === 3) {
+                document.getElementById('gameTitleDisplay').innerText = "Word Assembler";
+                document.getElementById('gameArenaDescription').innerText = "Reconstruct the verse reference field correctly.";
+                playground.innerHTML = `<p style="font-weight:bold; margin-bottom:10px;">Target: ${currentVerseRef}</p>
+                                         <input type="text" id="std3_input" placeholder="Type structural reference identifier...">`;
+            }
+            openModal('activeGameModal');
+        }
+
+        function startKidsGame(gameID) {
+            closeModal('kidsGamesModal');
+            activeSelectedGameID = gameID + 3; 
+            const playground = document.getElementById('gamePlayground');
+            document.getElementById('gameFeedbackOutput').innerText = '';
+            playground.innerHTML = '';
+
+            if(gameID === 1) {
+                document.getElementById('gameTitleDisplay').innerText = "Missing Word Match";
+                document.getElementById('gameArenaDescription').innerText = "Find the missing word!";
+                referenceWordsArray = currentVerseText.split(' ');
+                let targetIdx = Math.floor(Math.random() * referenceWordsArray.length);
+                missingIndexesArray = [targetIdx];
+                for(let i=0; i<referenceWordsArray.length; i++) {
+                    if(i === targetIdx) {
+                        playground.innerHTML += `<input type="text" class="game-input" id="kid1_${i}" placeholder="⭐"> `;
+                    } else {
+                        playground.innerHTML += referenceWordsArray[i] + ' ';
+                    }
+                }
+            } else if(gameID === 2) {
+                document.getElementById('gameTitleDisplay').innerText = "Letter Unscrambler";
+                document.getElementById('gameArenaDescription').innerText = "Unscramble the important word reference!";
+                let rawCleanRef = currentVerseRef.split(' ')[0];
+                let shuffled = rawCleanRef.split('').sort(() => 0.5 - Math.random()).join('');
+                playground.innerHTML = `<p style="font-size:22px; letter-spacing:3px; margin-bottom:10px;">${shuffled}</p>
+                                         <input type="text" id="kid2_input" placeholder="Your guess...">`;
+            } else if(gameID === 3) {
+                document.getElementById('gameTitleDisplay').innerText = "Kid Pop Picker";
+                document.getElementById('gameArenaDescription').innerText = "Does this verse text match our target active verse code? Type 'yes' or 'no'.";
+                playground.innerHTML = `<p style="margin-bottom:10px;">"${currentVerseText}"</p>
+                                         <input type="text" id="kid3_input" placeholder="yes / no">`;
+            }
+            openModal('activeGameModal');
+        }
+
+        function evaluateActiveGameEngine() {
+            const feedback = document.getElementById('gameFeedbackOutput');
+            let successState = true;
+
+            if(activeSelectedGameID === 1) {
+                missingIndexesArray.forEach(idx => {
+                    let guess = document.getElementById(`std1_${idx}`).value.replace(/[.,!?"]/g, '').toLowerCase().trim();
+                    let target = referenceWordsArray[idx].replace(/[.,!?"]/g, '').toLowerCase().trim();
+                    if(guess !== target) successState = false;
+                });
+            } else if(activeSelectedGameID === 2) {
+                let textGuess = document.getElementById('std2_input').value.trim().toLowerCase();
+                let textTarget = currentVerseText.trim().toLowerCase();
+                if(textGuess !== textTarget) successState = false;
+            } else if(activeSelectedGameID === 3) {
+                let refGuess = document.getElementById('std3_input').value.trim().toLowerCase();
+                let refTarget = currentVerseRef.trim().toLowerCase();
+                if(refGuess !== refTarget) successState = false;
+            } else if(activeSelectedGameID === 4) {
+                missingIndexesArray.forEach(idx => {
+                    let guess = document.getElementById(`kid1_${idx}`).value.replace(/[.,!?"]/g, '').toLowerCase().trim();
+                    let target = referenceWordsArray[idx].replace(/[.,!?"]/g, '').toLowerCase().trim();
+                    if(guess !== target) successState = false;
+                });
+            } else if(activeSelectedGameID === 5) {
+                let unscrambleGuess = document.getElementById('kid2_input').value.trim().toLowerCase();
+                let unscrambleTarget = currentVerseRef.split(' ')[0].toLowerCase();
+                if(unscrambleGuess !== unscrambleTarget) successState = false;
+            } else if(activeSelectedGameID === 6) {
+                let pickerGuess = document.getElementById('kid3_input').value.trim().toLowerCase();
+                if(pickerGuess !== 'yes') successState = false;
+            }
+
+            if(successState) {
+                feedback.style.color = 'green';
+                feedback.innerText = isKidsModeActive ? "🎉 Woohoo! Perfect Job! ⭐" : "Excellent! Answer match verified.";
+                confetti();
+            } else {
+                feedback.style.color = 'red';
+                feedback.innerText = isKidsModeActive ? "Let's try again! You can do it! 💪" : "Incorrect structure configuration detected.";
+            }
+        }
+
+        /* --- COLLECTION REPOSITORY LOGIC (FIXED LIKE/UNLIKE SYNCHRONIZATION) --- */
+        let savedVerses = JSON.parse(localStorage.getItem('savedVerses')) || [];
+        let journalEntries = JSON.parse(localStorage.getItem('journalEntries')) || [];
+
+        function isVerseAlreadyLiked(text, ref) {
+            return savedVerses.some(v => v.text.trim() === text.trim() && v.ref.trim() === ref.trim());
+        }
+
+        function toggleLikeVerse() {
+            if (isVerseAlreadyLiked(currentVerseText, currentVerseRef)) {
+                // Remove matching record completely from local system file
+                savedVerses = savedVerses.filter(v => !(v.text.trim() === currentVerseText.trim() && v.ref.trim() === currentVerseRef.trim()));
+            } else {
+                // Add record to clean array file
+                savedVerses.push({ text: currentVerseText.trim(), ref: currentVerseRef.trim() });
+            }
+            localStorage.setItem('savedVerses', JSON.stringify(savedVerses));
+            updateLikeButtonUIState();
+        }
+
+        function removeVerseFromSavedList(index) {
+            savedVerses.splice(index, 1);
+            localStorage.setItem('savedVerses', JSON.stringify(savedVerses));
+            renderSavedVerses();
+            updateLikeButtonUIState();
+        }
+
+        function updateLikeButtonUIState() {
+            const btn = document.getElementById('likeBtn');
+            if (isVerseAlreadyLiked(currentVerseText, currentVerseRef)) {
+                btn.innerHTML = '<i class="fas fa-heart" style="color:red;"></i> Saved';
+            } else {
+                btn.innerHTML = '<i class="far fa-heart"></i> Like';
+            }
+        }
+
+        function openSavedModal() { renderSavedVerses(); openModal('savedModal'); }
+
+        function renderSavedVerses() {
+            const query = document.getElementById('searchSaved').value.toLowerCase();
+            const list = document.getElementById('savedVersesList');
+            list.innerHTML = '';
+            savedVerses.forEach((v, index) => {
+                if(v.text.toLowerCase().includes(query) || v.ref.toLowerCase().includes(query)) {
+                    list.innerHTML += `<div class="list-item">
+                        <div class="saved-item-row">
+                            <div class="saved-text-block">
+                                <p style="font-family:var(--verse-font);">${v.text}</p>
+                                <small style="color:var(--primary-teal); font-weight:bold;">${v.ref}</small>
+                            </div>
+                            <button class="remove-btn" onclick="removeVerseFromSavedList(${index})" title="Unlike Verse">
+                                <i class="fas fa-trash-can"></i>
+                            </button>
+                        </div>
+                    </div>`;
+                }
+            });
+            if(list.innerHTML === '') list.innerHTML = '<p>No matching values found.</p>';
+        }
+
+        function saveJournal() {
+            const text = document.getElementById('journalEntry').value;
+            if(!text) return;
+            journalEntries.unshift({ date: new Date().toLocaleDateString(), text: text });
+            localStorage.setItem('journalEntries', JSON.stringify(journalEntries));
+            document.getElementById('journalEntry').value = '';
+            renderJournal();
+        }
+
+        function renderJournal() {
+            const list = document.getElementById('pastJournals');
+            list.innerHTML = '';
+            journalEntries.forEach(e => {
+                list.innerHTML += `<div class="list-item" style="display:block;"><strong>${e.date}</strong><p>${e.text}</p></div>`;
+            });
+        }
+
+        function calculateStreak() {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0); 
+            let lastOpenedStr = localStorage.getItem('verseFlowLastOpened');
+            let currentStreak = parseInt(localStorage.getItem('verseFlowStreak')) || 0;
+
+            if (!lastOpenedStr) {
+                currentStreak = 1;
+                localStorage.setItem('verseFlowLastOpened', today.getTime().toString());
+                localStorage.setItem('verseFlowStreak', currentStreak);
+            } else {
+                const lastOpenedDate = new Date(parseInt(lastOpenedStr));
+                const diffTime = Math.abs(today - lastOpenedDate);
+                const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+                if (diffDays === 1) {
+                    currentStreak += 1;
+                    localStorage.setItem('verseFlowLastOpened', today.getTime().toString());
+                    localStorage.setItem('verseFlowStreak', currentStreak);
+                } else if (diffDays > 1) {
+                    currentStreak = 1;
+                    localStorage.setItem('verseFlowLastOpened', today.getTime().toString());
+                    localStorage.setItem('verseFlowStreak', currentStreak);
+                }
+            }
+            document.getElementById('streakCount').innerText = currentStreak;
+        }
+
+        function updateScreen() {
+            document.getElementById('verseDisplay').innerText = currentVerseText;
+            document.getElementById('referenceDisplay').innerText = currentVerseRef;
+            updateLikeButtonUIState();
+        }
+
+        function shareNative() {
+            if (navigator.share) {
+                navigator.share({ title: 'VerseFlow', text: `${currentVerseText}\n- ${currentVerseRef}`, url: window.location.href });
+            } else {
+                alert(`Copied:\n${currentVerseText} - ${currentVerseRef}`);
+            }
+        }
+
+        window.onload = () => {
+            rebuildBackgroundThumbnails();
+            generatePlansInterface();
+            renderJournal();
+            calculateStreak();
+            updateLikeButtonUIState();
+        };
+    </script>
+</body>
+</html>
