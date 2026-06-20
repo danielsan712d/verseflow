@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VerseFlow - Verse of the Day</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
+    <style>
+        :root {
+            --primary-teal: #7FB3B3;
+            --dark-overlay: rgba(0, 0, 0, 0.45);
+            --card-bg: rgba(255, 255, 255, 0.92);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body, html {
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: #1a1a1a;
+        }
+
+        .app-container {
+            width: 100%;
+            max-width: 412px;
+            height: 100%;
+            max-height: 892px;
+            position: relative;
+            overflow: hidden;
+            border-radius: 36px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+            background-size: cover;
+            background-position: center;
+            transition: background-image 0.5s ease;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .overlay {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: var(--dark-overlay);
+            z-index: 1;
+        }
+
+        .content {
+            position: relative;
+            z-index: 2;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            padding: 24px;
+            color: white;
+            justify-content: space-between;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-top: 10px;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            color: #ffffff;
+        }
+
+        .icon-btn {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+            padding: 8px;
+            transition: transform 0.2s;
+        }
+        .icon-btn:active { transform: scale(0.9); }
+
+        .verse-container {
+            text-align: center;
+            margin: auto 0;
+            padding: 20px;
+        }
+
+        .verse-text {
+            font-family: "Georgia", serif;
+            font-size: 22px;
+            line-height: 1.5;
+            margin-bottom: 16px;
+            text-shadow: 1px 1px 4px rgba(0,0,0,0.6);
+        }
+
+        .verse-ref {
+            font-size: 16px;
+            font-weight: 600;
+            color: #FFD580;
+            letter-spacing: 0.5px;
+        }
+
+        .controls-panel {
+            background: var(--card-bg);
+            border-radius: 24px;
+            padding: 16px;
+            color: #333;
+            margin-bottom: 16px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+        }
+
+        .control-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        .control-row:last-child { margin-bottom: 0; }
+
+        .control-label {
+            font-size: 14px;
+            font-weight: 600;
+            color: #555;
+        }
+
+        select {
+            padding: 6px 12px;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+            font-size: 14px;
+            outline: none;
+        }
+
+        .bg-thumbnails {
+            display: flex;
+            gap: 8px;
+        }
+
+        .bg-thumb {
+            width: 32px;
+            height: 32px;
+            border-radius: 6px;
+            cursor: pointer;
+            border: 2px solid transparent;
+            background-size: cover;
+        }
+        .bg-thumb.active { border-color: var(--primary-teal); }
+
+        .actions-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .action-btn {
+            background: var(--primary-teal);
+            border: none;
+            padding: 14px;
+            border-radius: 16px;
+            color: white;
+            font-weight: 600;
+            font-size: 15px;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 4px 12px rgba(127, 179, 179, 0.3);
+        }
+        .action-btn:active { transform: scale(0.98); }
+        .action-btn.secondary { background: #4A6B6B; }
+
+        .modal {
+            position: absolute;
+            bottom: -100%;
+            left: 0; right: 0;
+            height: 75%;
+            background: white;
+            border-top-left-radius: 32px;
+            border-top-right-radius: 32px;
+            z-index: 10;
+            color: #333;
+            padding: 24px;
+            transition: bottom 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .modal.open { bottom: 0; }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+        }
+        .modal-close { font-size: 24px; cursor: pointer; color: #888;}
+        .list-item {
+            padding: 12px 0;
+            border-bottom: 1px solid #f5f5f5;
+            display: flex;
+            justify-content: space-between;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="app-container" id="appBg" style="background-image: url('https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=500&q=80');">
+        <div class="overlay"></div>
+       
+        <div class="content">
+            <div class="header">
+                <button class="icon-btn" onclick="openModal('historyModal')"><i class="fas fa-history"></i></button>
+                <h1>VerseFlow</h1>
+                <button class="icon-btn" onclick="openModal('friendsModal')"><i class="fas fa-user-group"></i></button>
+            </div>
+
+            <div class="verse-container">
+                <p class="verse-text" id="verseDisplay">"For I know the plans I have for you," declares the Lord, "plans to prosper you and not to harm you, plans to give you hope and a future."</p>
+                <p class="verse-ref" id="referenceDisplay">Jeremiah 29:11 (NIV)</p>
+            </div>
+
+            <div>
+                <div class="controls-panel">
+                    <div class="control-row">
+                        <span class="control-label">Translation</span>
+                        <select id="translationSelect" onchange="updateTranslation()">
+                            <option value="NIV">NIV</option>
+                            <option value="ESV">ESV</option>
+                            <option value="KJV">KJV</option>
+                        </select>
+                    </div>
+                    <div class="control-row">
+                        <span class="control-label">Background</span>
+                        <div class="bg-thumbnails">
+                            <div class="bg-thumb active" style="background-image: url('https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=80&q=80');" onclick="changeBackground(this, 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=500&q=80')"></div>
+                            <div class="bg-thumb" style="background-image: url('https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=80&q=80');" onclick="changeBackground(this, 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=500&q=80')"></div>
+                            <div class="bg-thumb" style="background-image: url('https://images.unsplash.com/photo-1501854140801-50d01698950b?auto=format&fit=crop&w=80&q=80');" onclick="changeBackground(this, 'https://images.unsplash.com/photo-1501854140801-50d01698950b?auto=format&fit=crop&w=500&q=80')"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="actions-grid">
+                    <button class="action-btn" onclick="shareVerse()"><i class="fas fa-arrow-up-from-bracket"></i> Share</button>
+                    <button class="action-btn secondary" onclick="toggleNotification()"><i id="bellIcon" class="fas fa-bell"></i> Remind Me</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal" id="historyModal">
+            <div class="modal-header">
+                <h2>Past Verses</h2>
+                <span class="modal-close" onclick="closeModal('historyModal')">&times;</span>
+            </div>
+            <div class="list-item"><div><strong>Proverbs 3:5</strong><br><small>Trust in the Lord with all your heart...</small></div></div>
+            <div class="list-item"><div><strong>Philippians 4:13</strong><br><small>I can do all things through Christ...</small></div></div>
+            <div class="list-item"><div><strong>Romans 8:28</strong><br><small>And we know that in all things God works...</small></div></div>
+        </div>
+
+        <div class="modal" id="friendsModal">
+            <div class="modal-header">
+                <h2>Friends & Community</h2>
+                <span class="modal-close" onclick="closeModal('friendsModal')">&times;</span>
+            </div>
+            <div class="list-item"><span>Sarah Jenkins</span><button style="padding:4px 8px; border-radius:6px; border:none; background:var(--primary-teal); color:white;" onclick="alert('Shared today\'s custom background with Sarah!')">Share Custom</button></div>
+            <div class="list-item"><span>David K.</span><span style="font-size:12px; color:#888;">Active Now</span></div>
+            <div class="list-item" style="margin-top:20px; font-weight:bold; border:none;">Add a Friend</div>
+            <div style="display:flex; gap:8px;">
+                <input type="text" placeholder="Enter username" style="flex:1; padding:8px; border-radius:8px; border:1px solid #ccc;">
+                <button class="action-btn" style="padding:0 16px; border-radius:8px;" onclick="alert('Friend request sent!')">Add</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const versesData = {
+            NIV: { text: '"For I know the plans I have for you," declares the Lord, "plans to prosper you and not to harm you, plans to give you hope and a future."', ref: 'Jeremiah 29:11' },
+            ESV: { text: '"For I know the plans I have for you, declares the Lord, plans for welfare and not for evil, to give you a future and a hope."', ref: 'Jeremiah 29:11' },
+            KJV: { text: '"For I know the thoughts that I think toward you, saith the Lord, thoughts of peace, and not of evil, to give you an expected end."', ref: 'Jeremiah 29:11' }
+        };
+
+        function updateTranslation() {
+            const selected = document.getElementById('translationSelect').value;
+            document.getElementById('verseDisplay').innerText = versesData[selected].text;
+            document.getElementById('referenceDisplay').innerText = `${versesData[selected].ref} (${selected})`;
+        }
+
+        function changeBackground(element, imgUrl) {
+            document.getElementById('appBg').style.backgroundImage = `url('${imgUrl}')`;
+            document.querySelectorAll('.bg-thumb').forEach(thumb => thumb.classList.remove('active'));
+            element.classList.add('active');
+        }
+
+        // Web Share API
+        function shareVerse() {
+            const verse = document.getElementById('verseDisplay').innerText;
+            const ref = document.getElementById('referenceDisplay').innerText;
+            if (navigator.share) {
+                navigator.share({ title: 'VerseFlow Day', text: `${verse} - ${ref}`, url: window.location.href });
+            } else {
+                alert(`Copied to Clipboard:\n\n${verse} - ${ref}`);
+            }
+        }
+
+        function toggleNotification() {
+            const icon = document.getElementById('bellIcon');
+            if(icon.classList.contains('fa-bell')) {
+                icon.className = 'fas fa-bell-slash';
+                alert('Daily verse reminder notifications turned ON!');
+            } else {
+                icon.className = 'fas fa-bell';
+                alert('Reminders turned OFF.');
+            }
+        }
+
+        function openModal(id) { document.getElementById(id).classList.add('open'); }
+        function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+    </script>
+</body>
+</html>
