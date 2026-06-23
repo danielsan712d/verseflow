@@ -4,9 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>VerseFlow - Universal Dynamic Layout</title>
+    
     <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+    
     <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600&family=Comic+Neue:wght@700&family=Fredoka+One&family=Lora:ital@1&family=Montserrat:wght@700&family=Pacifico&family=Playfair+Display:ital,wght@1,600&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
     
     <style>
@@ -128,7 +134,7 @@
         .action-btn { background: var(--primary-teal); border: none; padding: 16px; border-radius: 16px; color: white; font-weight: 600; cursor: pointer; width: 100%; margin-top: 12px; font-size: 16px; }
         .action-btn.secondary { background: #4A6B6B; }
 
-        textarea, select, input[type="text"], input[type="range"] { width: 100%; padding: 16px; border-radius: 12px; border: 1px solid #ccc; background: var(--card-bg); color: var(--text-main); margin-top: 10px; font-size: 16px; }
+        textarea, select, input[type="text"], input[type="range"], input[type="password"] { width: 100%; padding: 16px; border-radius: 12px; border: 1px solid #ccc; background: var(--card-bg); color: var(--text-main); margin-top: 10px; font-size: 16px; }
         input[type="range"] { padding: 0; margin: 10px 0; background: transparent; border: none; }
         input[type="range"]::-webkit-slider-thumb { appearance: none; width: 24px; height: 24px; border-radius: 50%; background: var(--primary-teal); cursor: pointer; }
         input[type="range"]::-webkit-slider-runnable-track { width: 100%; height: 8px; background: #ccc; border-radius: 4px; }
@@ -245,196 +251,323 @@
                 </div>
             </div>
         </div>
+    </div> <div class="modal" id="todoModal">
+        <div class="modal-content-wrapper">
+            <div class="modal-header"><h2>✅ Daily Habits</h2><span class="modal-close" onclick="closeModal('todoModal')">&times;</span></div>
+            <div style="margin-bottom: 20px;">
+                <input type="text" id="todoInput" placeholder="Add custom habit (e.g., Read 1 Chapter)..." style="margin-top:0;">
+                <button class="action-btn" onclick="addCustomTodo()" style="margin-top:10px; background:var(--primary-teal);">➕ Add Habit</button>
+            </div>
+            <div id="todoListContainer"></div>
+        </div>
+    </div>
 
-        <div class="modal" id="todoModal">
-            <div class="modal-content-wrapper">
-                <div class="modal-header"><h2>✅ Daily Habits</h2><span class="modal-close" onclick="closeModal('todoModal')">&times;</span></div>
-                <div style="margin-bottom: 20px;">
-                    <input type="text" id="todoInput" placeholder="Add custom habit (e.g., Read 1 Chapter)..." style="margin-top:0;">
-                    <button class="action-btn" onclick="addCustomTodo()" style="margin-top:10px; background:var(--primary-teal);">➕ Add Habit</button>
+    <div class="modal" id="authModal">
+        <div class="modal-content-wrapper">
+            <div class="modal-header"><h2 id="authModalTitle">🔑 Create Account</h2><span class="modal-close" onclick="closeModal('authModal')">&times;</span></div>
+            <p style="color:var(--text-sub); margin-bottom:15px;">Save your streaks, habits, and favorite verses in the cloud!</p>
+            
+            <input type="text" id="authEmail" placeholder="Email address">
+            <input type="password" id="authPassword" placeholder="Password (min 6 characters)">
+            
+            <button class="action-btn" id="authPrimaryBtn" onclick="handleAuthAction()">Sign Up</button>
+            <button class="action-btn secondary" id="authToggleBtn" onclick="toggleAuthMode()">Already have an account? Log In</button>
+            <p id="authErrorMsg" style="color:red; margin-top:10px; font-weight:bold;"></p>
+        </div>
+    </div>
+
+    <div class="modal" id="settingsModal">
+        <div class="modal-content-wrapper">
+            <div class="modal-header"><h2>Settings</h2><span class="modal-close" onclick="closeModal('settingsModal')">&times;</span></div>
+
+            <div class="list-item" style="background: rgba(78, 205, 196, 0.1); padding: 14px; border-radius: 16px; margin-bottom: 14px;">
+                <strong>💾 Backup & Restore Progress</strong><br>
+                <small style="color:var(--text-sub);">Save a backup file before clearing your browser history!</small>
+                <div style="display:flex; gap:10px; margin-top:10px;">
+                    <button class="action-btn" style="margin-top:0;" onclick="exportAppData()">⬇️ Backup</button>
+                    <label class="action-btn secondary" style="margin-top:0; text-align:center; cursor:pointer; flex:1; padding: 16px; border-radius: 16px;">
+                        ⬆️ Restore
+                        <input type="file" id="importDataFile" accept=".json" style="display:none;" onchange="importAppData(event)">
+                    </label>
                 </div>
-                <div id="todoListContainer"></div>
+            </div>
+            
+            <div class="list-item" style="background: #FFF3CD; padding: 14px; border-radius: 16px; margin-bottom: 14px; color: #222;">
+                <strong>🎈 Interface Configuration</strong><br>
+                <button class="action-btn" style="background:#FF9F43; margin-top:6px;" onclick="toggleKidsMode()">Toggle Kids Mode</button>
+            </div>
+
+            <div class="list-item" style="background: rgba(127,179,179,0.1); padding: 14px; border-radius: 16px; margin-bottom: 14px;">
+                <strong>➕ Custom Verse Importer</strong><br>
+                <input type="text" id="importVerseText" placeholder="Type scripture text content..." style="background:#fff;">
+                <input type="text" id="importVerseRef" placeholder="e.g., Genesis 1:1" style="background:#fff; margin-top:8px;">
+                <button class="action-btn" style="margin-top:8px;" onclick="importCustomUserVerse()">Import Custom Scripture</button>
+            </div>
+
+            <div class="list-item">
+                <strong>Themes</strong><br>
+                <button class="action-btn secondary" onclick="toggleDarkMode()">Toggle Light/Dark Mode</button>
+            </div>
+
+            <div class="list-item">
+                <strong>Account</strong><br>
+                <button class="action-btn secondary" onclick="openModal('authModal')">Cloud Save Log In</button>
+            </div>
+
+            <div class="list-item">
+                <strong>Audio Voice (Read Out Loud)</strong>
+                <select id="voiceSelect" onchange="changeVoice(this.value)">
+                    <option value="">Default System Voice</option>
+                </select>
+            </div>
+
+            <div class="list-item">
+                <strong>Typography (Fonts)</strong>
+                <div class="font-thumbnails">
+                    <div class="font-thumb" style="font-family:'Georgia'" onclick="changeFont('Georgia')">Classic</div>
+                    <div class="font-thumb" style="font-family:'Pacifico'" onclick="changeFont('Pacifico')">Cursive</div>
+                    <div class="font-thumb" style="font-family:'Roboto'" onclick="changeFont('Roboto')">Modern</div>
+                    <div class="font-thumb" style="font-family:'Playfair Display'" onclick="changeFont('Playfair Display')">Elegant</div>
+                    <div class="font-thumb" style="font-family:'Caveat'" onclick="changeFont('Caveat')">Handwritten</div>
+                    <div class="font-thumb" style="font-family:'Comic Neue'" onclick="changeFont('Comic Neue')">Friendly</div>
+                    <div class="font-thumb" style="font-family:'Montserrat'" onclick="changeFont('Montserrat')">Bold Tech</div>
+                </div>
+            </div>
+
+            <div class="list-item">
+                <strong>Verse Font Size</strong>
+                <div style="display: flex; align-items: center; gap: 15px; margin-top: 10px;">
+                    <span style="font-size: 14px; font-weight: bold;">A</span>
+                    <input type="range" id="fontSizeSlider" min="0.6" max="1.6" step="0.1" value="1" oninput="updateFontSize(this.value)" style="flex: 1;">
+                    <span style="font-size: 24px; font-weight: bold;">A</span>
+                </div>
+            </div>
+
+            <div class="list-item">
+                <strong>Backgrounds</strong>
+                <div class="bg-thumbnails" id="bgContainer"></div>
+            </div>
+
+            <div class="list-item">
+                <strong>Use Your Own Image</strong>
+                <input type="file" id="customBgUpload" accept="image/*" style="margin-top:10px;">
             </div>
         </div>
+    </div>
 
-        <div class="modal" id="settingsModal">
-            <div class="modal-content-wrapper">
-                <div class="modal-header"><h2>Settings</h2><span class="modal-close" onclick="closeModal('settingsModal')">&times;</span></div>
+    <div class="modal" id="moodModal">
+        <div class="modal-content-wrapper">
+            <div class="modal-header"><h2>How are you feeling?</h2><span class="modal-close" onclick="closeModal('moodModal')">&times;</span></div>
+            <div class="grid-2">
+                <button class="action-btn" onclick="setMoodVerse('anxious')">Anxious</button>
+                <button class="action-btn" onclick="setMoodVerse('sad')">Sad</button>
+                <button class="action-btn" onclick="setMoodVerse('angry')">Angry</button>
+                <button class="action-btn" onclick="setMoodVerse('grateful')">Grateful</button>
+                <button class="action-btn" onclick="setMoodVerse('tired')">Tired</button>
+                <button class="action-btn" onclick="setMoodVerse('lonely')">Lonely</button>
+            </div>
+            <button class="action-btn secondary" style="margin-top: 15px;" onclick="clearMood()">🔄 Reset to Daily Verse</button>
+        </div>
+    </div>
 
-                <div class="list-item" style="background: rgba(78, 205, 196, 0.1); padding: 14px; border-radius: 16px; margin-bottom: 14px;">
-                    <strong>💾 Backup & Restore Progress</strong><br>
-                    <small style="color:var(--text-sub);">Save a backup file before clearing your browser history!</small>
-                    <div style="display:flex; gap:10px; margin-top:10px;">
-                        <button class="action-btn" style="margin-top:0;" onclick="exportAppData()">⬇️ Backup</button>
-                        <label class="action-btn secondary" style="margin-top:0; text-align:center; cursor:pointer; flex:1; padding: 16px; border-radius: 16px;">
-                            ⬆️ Restore
-                            <input type="file" id="importDataFile" accept=".json" style="display:none;" onchange="importAppData(event)">
-                        </label>
-                    </div>
-                </div>
+    <div class="modal" id="prayerModal">
+        <div class="modal-content-wrapper">
+            <div class="modal-header"><h2>🙏 Prayer Board</h2><span class="modal-close" onclick="closeModal('prayerModal')">&times;</span></div>
+            <textarea id="prayerEntry" rows="3" placeholder="Write a prayer request or praise report..."></textarea>
+            <button class="action-btn" style="background:#9B59B6;" onclick="savePrayer()">Pin to Board</button>
+            <div class="prayer-board-bg" id="prayerListContainer"></div>
+        </div>
+    </div>
+
+    <div class="modal" id="journalModal">
+        <div class="modal-content-wrapper">
+            <div class="modal-header"><h2>Private Journal</h2><span class="modal-close" onclick="closeModal('journalModal')">&times;</span></div>
+            <textarea id="journalEntry" rows="5" placeholder="Write your daily observations here..."></textarea>
+            <button class="action-btn" onclick="saveJournal()">Save Entry</button>
+            <div id="pastJournals" style="margin-top:20px;"></div>
+        </div>
+    </div>
+
+    <div class="modal" id="badgesModal">
+        <div class="modal-content-wrapper">
+            <div class="modal-header"><h2>🏆 Achievements</h2><span class="modal-close" onclick="closeModal('badgesModal')">&times;</span></div>
+            <p style="color:var(--text-sub);">Track your spiritual milestones and habit dedication maps!</p>
+            <div class="badges-grid" id="badgesDisplayGrid">
+                <div class="badge-card" id="badge_streak_1"><span class="badge-icon">🌱</span><strong>First Step</strong><br><small>Open the app</small></div>
+                <div class="badge-card" id="badge_streak_5"><span class="badge-icon">🔥</span><strong>Consistent</strong><br><small>Hit a 5-day streak</small></div>
+                <div class="badge-card" id="badge_habits_all"><span class="badge-icon">🎯</span><strong>Disciplined</strong><br><small>Finish all habits</small></div>
+                <div class="badge-card" id="badge_gratitude_10"><span class="badge-icon">☀️</span><strong>Thankful</strong><br><small>Log 10 gratitudes</small></div>
                 
-                <div class="list-item" style="background: #FFF3CD; padding: 14px; border-radius: 16px; margin-bottom: 14px; color: #222;">
-                    <strong>🎈 Interface Configuration</strong><br>
-                    <button class="action-btn" style="background:#FF9F43; margin-top:6px;" onclick="toggleKidsMode()">Toggle Kids Mode</button>
-                </div>
-
-                <div class="list-item" style="background: rgba(127,179,179,0.1); padding: 14px; border-radius: 16px; margin-bottom: 14px;">
-                    <strong>➕ Custom Verse Importer</strong><br>
-                    <input type="text" id="importVerseText" placeholder="Type scripture text content..." style="background:#fff;">
-                    <input type="text" id="importVerseRef" placeholder="e.g., Genesis 1:1" style="background:#fff; margin-top:8px;">
-                    <button class="action-btn" style="margin-top:8px;" onclick="importCustomUserVerse()">Import Custom Scripture</button>
-                </div>
-
-                <div class="list-item">
-                    <strong>Themes</strong><br>
-                    <button class="action-btn secondary" onclick="toggleDarkMode()">Toggle Light/Dark Mode</button>
-                </div>
-
-                <div class="list-item">
-                    <strong>Audio Voice (Read Out Loud)</strong>
-                    <select id="voiceSelect" onchange="changeVoice(this.value)">
-                        <option value="">Default System Voice</option>
-                    </select>
-                </div>
-
-                <div class="list-item">
-                    <strong>Typography (Fonts)</strong>
-                    <div class="font-thumbnails">
-                        <div class="font-thumb" style="font-family:'Georgia'" onclick="changeFont('Georgia')">Classic</div>
-                        <div class="font-thumb" style="font-family:'Pacifico'" onclick="changeFont('Pacifico')">Cursive</div>
-                        <div class="font-thumb" style="font-family:'Roboto'" onclick="changeFont('Roboto')">Modern</div>
-                        <div class="font-thumb" style="font-family:'Playfair Display'" onclick="changeFont('Playfair Display')">Elegant</div>
-                        <div class="font-thumb" style="font-family:'Caveat'" onclick="changeFont('Caveat')">Handwritten</div>
-                        <div class="font-thumb" style="font-family:'Comic Neue'" onclick="changeFont('Comic Neue')">Friendly</div>
-                        <div class="font-thumb" style="font-family:'Montserrat'" onclick="changeFont('Montserrat')">Bold Tech</div>
-                    </div>
-                </div>
-
-                <div class="list-item">
-                    <strong>Verse Font Size</strong>
-                    <div style="display: flex; align-items: center; gap: 15px; margin-top: 10px;">
-                        <span style="font-size: 14px; font-weight: bold;">A</span>
-                        <input type="range" id="fontSizeSlider" min="0.6" max="1.6" step="0.1" value="1" oninput="updateFontSize(this.value)" style="flex: 1;">
-                        <span style="font-size: 24px; font-weight: bold;">A</span>
-                    </div>
-                </div>
-
-                <div class="list-item">
-                    <strong>Backgrounds</strong>
-                    <div class="bg-thumbnails" id="bgContainer"></div>
-                </div>
-
-                <div class="list-item">
-                    <strong>Use Your Own Image</strong>
-                    <input type="file" id="customBgUpload" accept="image/*" style="margin-top:10px;">
-                </div>
+                <div class="badge-card" id="badge_games_3"><span class="badge-icon">🧠</span><strong>Scholar</strong><br><small>Play 3 Games</small></div>
+                <div class="badge-card" id="badge_saved_5"><span class="badge-icon">❤️</span><strong>Collector</strong><br><small>Save 5 Verses</small></div>
+                <div class="badge-card" id="badge_custom_verse"><span class="badge-icon">✍️</span><strong>Author</strong><br><small>Import a Verse</small></div>
+                <div class="badge-card" id="badge_plans_1"><span class="badge-icon">📖</span><strong>Seeker</strong><br><small>Start a Plan</small></div>
             </div>
         </div>
+    </div>
 
-        <div class="modal" id="moodModal">
-            <div class="modal-content-wrapper">
-                <div class="modal-header"><h2>How are you feeling?</h2><span class="modal-close" onclick="closeModal('moodModal')">&times;</span></div>
-                <div class="grid-2">
-                    <button class="action-btn" onclick="setMoodVerse('anxious')">Anxious</button>
-                    <button class="action-btn" onclick="setMoodVerse('sad')">Sad</button>
-                    <button class="action-btn" onclick="setMoodVerse('angry')">Angry</button>
-                    <button class="action-btn" onclick="setMoodVerse('grateful')">Grateful</button>
-                    <button class="action-btn" onclick="setMoodVerse('tired')">Tired</button>
-                    <button class="action-btn" onclick="setMoodVerse('lonely')">Lonely</button>
-                </div>
-                <button class="action-btn secondary" style="margin-top: 15px;" onclick="clearMood()">🔄 Reset to Daily Verse</button>
-            </div>
+    <div class="modal" id="gamesListModal">
+        <div class="modal-content-wrapper">
+            <div class="modal-header"><h2>Bible Training Games</h2><span class="modal-close" onclick="closeModal('gamesListModal')">&times;</span></div>
+            <button class="action-btn" style="margin-bottom:12px;" onclick="startStandardGame(1)">Game 1: Hidden Word Memorizer</button>
+            <button class="action-btn" style="margin-bottom:12px;" onclick="startStandardGame(2)">Game 2: Speed Type Challenge</button>
+            <button class="action-btn" style="margin-bottom:12px;" onclick="startStandardGame(3)">Game 3: Word Assembler Layout</button>
+            <button class="action-btn" style="margin-bottom:12px; background:#E67E22;" onclick="startMemoryFadeEngine()">Game 4: Scripture Fade Timer</button>
+            <button class="action-btn" style="background:#9B59B6;" onclick="startReferenceGuesserGame()">Game 5: 3-Round Ref Guesser</button>
         </div>
+    </div>
 
-        <div class="modal" id="prayerModal">
-            <div class="modal-content-wrapper">
-                <div class="modal-header"><h2>🙏 Prayer Board</h2><span class="modal-close" onclick="closeModal('prayerModal')">&times;</span></div>
-                <textarea id="prayerEntry" rows="3" placeholder="Write a prayer request or praise report..."></textarea>
-                <button class="action-btn" style="background:#9B59B6;" onclick="savePrayer()">Pin to Board</button>
-                <div class="prayer-board-bg" id="prayerListContainer"></div>
-            </div>
+    <div class="modal" id="kidsGamesModal">
+        <div class="modal-content-wrapper">
+            <div class="modal-header"><h2>🎪 Fun Bible Games!</h2><span class="modal-close" onclick="closeModal('kidsGamesModal')">&times;</span></div>
+            <button class="action-btn" style="background:#FF9F43; margin-bottom:12px;" onclick="startKidsGame(1)">Game 1: Missing Word Matcher</button>
+            <button class="action-btn" style="background:#4ECDC4; margin-bottom:12px;" onclick="startKidsGame(2)">Game 2: Fun Letter Unscrambler</button>
+            <button class="action-btn" style="background:#A8E6CF; margin-bottom:12px;" onclick="startKidsGame(3)">Game 3: Kid Pop Picker</button>
+            <button class="action-btn" style="background:#E67E22; margin-bottom:12px;" onclick="startMemoryFadeEngine()">Game 4: Scripture Fade Timer</button>
+            <button class="action-btn" style="background:#9B59B6;" onclick="startReferenceGuesserGame()">Game 5: Book Guesser</button>
         </div>
+    </div>
 
-        <div class="modal" id="journalModal">
-            <div class="modal-content-wrapper">
-                <div class="modal-header"><h2>Private Journal</h2><span class="modal-close" onclick="closeModal('journalModal')">&times;</span></div>
-                <textarea id="journalEntry" rows="5" placeholder="Write your daily observations here..."></textarea>
-                <button class="action-btn" onclick="saveJournal()">Save Entry</button>
-                <div id="pastJournals" style="margin-top:20px;"></div>
-            </div>
+    <div class="modal" id="activeGameModal">
+        <div class="modal-content-wrapper">
+            <div class="modal-header"><h2 id="gameTitleDisplay">Game Mode</h2><span class="modal-close" onclick="closeModal('activeGameModal')">&times;</span></div>
+            <div id="gameArenaDescription" style="margin-bottom:15px; font-size:15px; color:var(--text-sub);"></div>
+            <div id="gamePlayground" style="line-height: 2; font-size: 18px; margin-bottom:15px;"></div>
+            <button class="action-btn" id="gameSubmitBtn" onclick="evaluateActiveGameEngine()">Submit Check</button>
+            <p id="gameFeedbackOutput" style="margin-top:15px; font-weight:bold;"></p>
         </div>
+    </div>
 
-        <div class="modal" id="badgesModal">
-            <div class="modal-content-wrapper">
-                <div class="modal-header"><h2>🏆 Achievements</h2><span class="modal-close" onclick="closeModal('badgesModal')">&times;</span></div>
-                <p style="color:var(--text-sub);">Track your spiritual milestones and habit dedication maps!</p>
-                <div class="badges-grid" id="badgesDisplayGrid">
-                    <div class="badge-card" id="badge_streak_1"><span class="badge-icon">🌱</span><strong>First Step</strong><br><small>Open the app</small></div>
-                    <div class="badge-card" id="badge_streak_5"><span class="badge-icon">🔥</span><strong>Consistent</strong><br><small>Hit a 5-day streak</small></div>
-                    <div class="badge-card" id="badge_habits_all"><span class="badge-icon">🎯</span><strong>Disciplined</strong><br><small>Finish all habits</small></div>
-                    <div class="badge-card" id="badge_gratitude_10"><span class="badge-icon">☀️</span><strong>Thankful</strong><br><small>Log 10 gratitudes</small></div>
-                    
-                    <div class="badge-card" id="badge_games_3"><span class="badge-icon">🧠</span><strong>Scholar</strong><br><small>Play 3 Games</small></div>
-                    <div class="badge-card" id="badge_saved_5"><span class="badge-icon">❤️</span><strong>Collector</strong><br><small>Save 5 Verses</small></div>
-                    <div class="badge-card" id="badge_custom_verse"><span class="badge-icon">✍️</span><strong>Author</strong><br><small>Import a Verse</small></div>
-                    <div class="badge-card" id="badge_plans_1"><span class="badge-icon">📖</span><strong>Seeker</strong><br><small>Start a Plan</small></div>
-                </div>
-            </div>
+    <div class="modal" id="plansModal">
+        <div class="modal-content-wrapper">
+            <div class="modal-header"><h2>Themed Reading Plans</h2><span class="modal-close" onclick="closeModal('plansModal')">&times;</span></div>
+            <div id="plansDynamicContainer"></div>
         </div>
+    </div>
 
-        <div class="modal" id="gamesListModal">
-            <div class="modal-content-wrapper">
-                <div class="modal-header"><h2>Bible Training Games</h2><span class="modal-close" onclick="closeModal('gamesListModal')">&times;</span></div>
-                <button class="action-btn" style="margin-bottom:12px;" onclick="startStandardGame(1)">Game 1: Hidden Word Memorizer</button>
-                <button class="action-btn" style="margin-bottom:12px;" onclick="startStandardGame(2)">Game 2: Speed Type Challenge</button>
-                <button class="action-btn" style="margin-bottom:12px;" onclick="startStandardGame(3)">Game 3: Word Assembler Layout</button>
-                <button class="action-btn" style="margin-bottom:12px; background:#E67E22;" onclick="startMemoryFadeEngine()">Game 4: Scripture Fade Timer</button>
-                <button class="action-btn" style="background:#9B59B6;" onclick="startReferenceGuesserGame()">Game 5: 3-Round Ref Guesser</button>
-            </div>
+    <div class="modal" id="savedModal">
+        <div class="modal-content-wrapper">
+            <div class="modal-header"><h2>Saved Collection</h2><span class="modal-close" onclick="closeModal('savedModal')">&times;</span></div>
+            <input type="text" id="searchSaved" placeholder="Search collection or #tag..." onkeyup="renderSavedVerses()">
+            <div id="savedVersesList" style="margin-top:15px;"></div>
         </div>
-
-        <div class="modal" id="kidsGamesModal">
-            <div class="modal-content-wrapper">
-                <div class="modal-header"><h2>🎪 Fun Bible Games!</h2><span class="modal-close" onclick="closeModal('kidsGamesModal')">&times;</span></div>
-                <button class="action-btn" style="background:#FF9F43; margin-bottom:12px;" onclick="startKidsGame(1)">Game 1: Missing Word Matcher</button>
-                <button class="action-btn" style="background:#4ECDC4; margin-bottom:12px;" onclick="startKidsGame(2)">Game 2: Fun Letter Unscrambler</button>
-                <button class="action-btn" style="background:#A8E6CF; margin-bottom:12px;" onclick="startKidsGame(3)">Game 3: Kid Pop Picker</button>
-                <button class="action-btn" style="background:#E67E22; margin-bottom:12px;" onclick="startMemoryFadeEngine()">Game 4: Scripture Fade Timer</button>
-                <button class="action-btn" style="background:#9B59B6;" onclick="startReferenceGuesserGame()">Game 5: Book Guesser</button>
-            </div>
-        </div>
-
-        <div class="modal" id="activeGameModal">
-            <div class="modal-content-wrapper">
-                <div class="modal-header"><h2 id="gameTitleDisplay">Game Mode</h2><span class="modal-close" onclick="closeModal('activeGameModal')">&times;</span></div>
-                <div id="gameArenaDescription" style="margin-bottom:15px; font-size:15px; color:var(--text-sub);"></div>
-                <div id="gamePlayground" style="line-height: 2; font-size: 18px; margin-bottom:15px;"></div>
-                <button class="action-btn" id="gameSubmitBtn" onclick="evaluateActiveGameEngine()">Submit Check</button>
-                <p id="gameFeedbackOutput" style="margin-top:15px; font-weight:bold;"></p>
-            </div>
-        </div>
-
-        <div class="modal" id="plansModal">
-            <div class="modal-content-wrapper">
-                <div class="modal-header"><h2>Themed Reading Plans</h2><span class="modal-close" onclick="closeModal('plansModal')">&times;</span></div>
-                <div id="plansDynamicContainer"></div>
-            </div>
-        </div>
-
-        <div class="modal" id="savedModal">
-            <div class="modal-content-wrapper">
-                <div class="modal-header"><h2>Saved Collection</h2><span class="modal-close" onclick="closeModal('savedModal')">&times;</span></div>
-                <input type="text" id="searchSaved" placeholder="Search collection or #tag..." onkeyup="renderSavedVerses()">
-                <div id="savedVersesList" style="margin-top:15px;"></div>
-            </div>
-        </div>
-
     </div>
 
     <script>
+        /* --- CLOUD DATABASE ENGINE (FIREBASE) --- */
+        const firebaseConfig = {
+          apiKey: "AIzaSyAWTYWZK0t6LPsY-R9Z28RY5kKmXPWEbHI",
+          authDomain: "verseflow-app-6b333.firebaseapp.com",
+          projectId: "verseflow-app-6b333",
+          storageBucket: "verseflow-app-6b333.firebasestorage.app",
+          messagingSenderId: "728301690782",
+          appId: "1:728301690782:web:364ce80fe903cd69b6008f",
+          measurementId: "G-4C9E54CSRS"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+
+        let currentUser = null;
+        let isSignUpMode = true; 
+
+        auth.onAuthStateChanged(user => {
+            if (user) {
+                currentUser = user;
+                console.log("Cloud Connected! User:", user.email);
+                loadDataFromCloud(user.uid); 
+            } else {
+                currentUser = null;
+                console.log("Operating in local memory mode.");
+            }
+        });
+
+        function toggleAuthMode() {
+            isSignUpMode = !isSignUpMode;
+            document.getElementById('authModalTitle').innerText = isSignUpMode ? "🔑 Create Account" : "🔐 Log In";
+            document.getElementById('authPrimaryBtn').innerText = isSignUpMode ? "Sign Up" : "Log In";
+            document.getElementById('authToggleBtn').innerText = isSignUpMode ? "Already have an account? Log In" : "Need an account? Sign Up";
+        }
+
+        function handleAuthAction() {
+            const email = document.getElementById('authEmail').value.trim();
+            const password = document.getElementById('authPassword').value.trim();
+            const errorEl = document.getElementById('authErrorMsg');
+            errorEl.innerText = "";
+
+            if (!email || !password) return alert("Please fill out all fields.");
+
+            if (isSignUpMode) {
+                auth.createUserWithEmailAndPassword(email, password)
+                    .then((userCredential) => {
+                        closeModal('authModal');
+                        saveDataToCloud(userCredential.user.uid);
+                        alert("Account created! Your data is now backed up in the cloud. 🎉");
+                    })
+                    .catch(error => errorEl.innerText = error.message);
+            } else {
+                auth.signInWithEmailAndPassword(email, password)
+                    .then(() => {
+                        closeModal('authModal');
+                        alert("Logged in successfully! Loading your saved data...");
+                    })
+                    .catch(error => errorEl.innerText = error.message);
+            }
+        }
+
+        function saveDataToCloud(uid) {
+            if (!uid) return;
+            db.collection("users").doc(uid).set({
+                streak: parseInt(localStorage.getItem('verseFlowStreak')) || 0,
+                gratitude: parseInt(localStorage.getItem('verseFlowGratitudeAbsolute')) || 0,
+                savedVerses: JSON.parse(localStorage.getItem('savedVerses')) || [],
+                todos: JSON.parse(localStorage.getItem('verseFlowTodos')) || [],
+                journal: JSON.parse(localStorage.getItem('journalEntries')) || [],
+                prayers: JSON.parse(localStorage.getItem('prayerEntries')) || [],
+                gamesPlayed: parseInt(localStorage.getItem('verseFlowGamesPlayed')) || 0,
+                customImported: localStorage.getItem('verseFlowCustomImported') || 'false',
+                plansStarted: localStorage.getItem('verseFlowPlansStarted') || 'false',
+                habitsDoneToday: localStorage.getItem('verseFlowHabitsAllDoneToday') || 'false'
+            }, { merge: true })
+            .then(() => console.log("Cloud sync successful!"))
+            .catch(err => console.error("Cloud save failed:", err));
+        }
+
+        function loadDataFromCloud(uid) {
+            db.collection("users").doc(uid).get().then(doc => {
+                if (doc.exists) {
+                    const data = doc.data();
+                    
+                    localStorage.setItem('verseFlowStreak', data.streak || 0);
+                    localStorage.setItem('verseFlowGratitudeAbsolute', data.gratitude || 0);
+                    localStorage.setItem('savedVerses', JSON.stringify(data.savedVerses || []));
+                    localStorage.setItem('verseFlowTodos', JSON.stringify(data.todos || []));
+                    localStorage.setItem('journalEntries', JSON.stringify(data.journal || []));
+                    localStorage.setItem('prayerEntries', JSON.stringify(data.prayers || []));
+                    localStorage.setItem('verseFlowGamesPlayed', data.gamesPlayed || 0);
+                    localStorage.setItem('verseFlowCustomImported', data.customImported || 'false');
+                    localStorage.setItem('verseFlowPlansStarted', data.plansStarted || 'false');
+                    localStorage.setItem('verseFlowHabitsAllDoneToday', data.habitsDoneToday || 'false');
+                    
+                    journalEntries = data.journal || [];
+                    prayerEntries = data.prayers || [];
+                    savedVerses = data.savedVerses || [];
+                    dailyTodos = data.todos || [];
+                    
+                    calculateStreak();
+                    renderTodos();
+                    renderSavedVerses();
+                    renderJournal();
+                    renderPrayers();
+                    evaluateBadgesEngine(); 
+                }
+            });
+        }
+
+
         /* --- DATABASES & CONFIGURATION SETS --- */
         let isKidsModeActive = false;
-        
         let standardDailyVerses = [
             { t: '"I have told you these things, so that in me you may have peace. In this world you will have trouble. But take heart! I have overcome the world."', r: 'John 16:33', c: "Jesus spoke these comforting words to His disciples right before His arrest, promising that His ultimate victory matters more than temporary earthly struggles." },
             { t: '"Trust in the Lord with all your heart and lean not on your own understanding."', r: 'Proverbs 3:5', c: "Written by King Solomon, the wisest man of his time, reminding readers that human logic is flawed, but God's perspective is perfect." },
@@ -588,72 +721,6 @@
 
         let customUserImportedVerses = JSON.parse(localStorage.getItem('verseFlowCustomPool')) || [];
 
-        function getDailyVerse(isKids) {
-            const now = new Date();
-            const start = new Date(now.getFullYear(), 0, 0);
-            const diff = now - start;
-            const oneDay = 1000 * 60 * 60 * 24;
-            const dayOfYear = Math.floor(diff / oneDay);
-            
-            const arrayToUse = isKids ? kidsDailyVerses : [...standardDailyVerses, ...customUserImportedVerses];
-            return arrayToUse[dayOfYear % arrayToUse.length];
-        }
-
-        function importCustomUserVerse() {
-            const txt = document.getElementById('importVerseText').value.trim();
-            const ref = document.getElementById('importVerseRef').value.trim();
-            if(!txt || !ref) return alert("Fill in text content and scriptural location parameters.");
-            
-            customUserImportedVerses.push({ t: `"${txt}"`, r: ref, c: "A personal verse imported by you." });
-            localStorage.setItem('verseFlowCustomPool', JSON.stringify(customUserImportedVerses));
-            
-            document.getElementById('importVerseText').value = '';
-            document.getElementById('importVerseRef').value = '';
-            
-            localStorage.setItem('verseFlowCustomImported', 'true');
-            alert("Scripture successfully injected into rotation system pools.");
-        }
-
-        function shuffleVerse() {
-            const pool = isKidsModeActive ? kidsDailyVerses : [...standardDailyVerses, ...customUserImportedVerses];
-            const randIdx = Math.floor(Math.random() * pool.length);
-            currentVerseText = pool[randIdx].t;
-            currentVerseRef = pool[randIdx].r;
-            currentVerseContext = pool[randIdx].c || "A beautiful scripture to reflect on.";
-            updateScreen();
-        }
-
-        let currentVerseText = "";
-        let currentVerseRef = "";
-        let currentVerseContext = "";
-        let activeSelectedGameID = 0;
-
-        const regularBackgrounds = [
-            'https://images.unsplash.com/photo-1506744038136-46273834b3fb',
-            'https://images.unsplash.com/photo-1464222759023-fed622ff2c3b',
-            'https://images.unsplash.com/photo-1501854140801-50d01698950b',
-            'https://images.unsplash.com/photo-1472214103451-9374bd1c798e',
-            'https://images.unsplash.com/photo-1444464666168-49b628800582',
-            'https://images.unsplash.com/photo-1433086966358-54859d0ed716',
-            'https://images.unsplash.com/photo-1475924156734-496f6cac6ec1',
-            'https://images.unsplash.com/photo-1534447677768-be436bb09401',
-            'https://images.unsplash.com/photo-1490682143684-1436ce2a13b8',
-            'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee',
-            'https://images.unsplash.com/photo-1441974231531-c6227db76b6e',
-            'https://images.unsplash.com/photo-1454496522488-7a8e488e8606'
-        ];
-
-        const kidsBackgrounds = [
-            'https://images.unsplash.com/photo-1513151233558-d860c5398176',
-            'https://images.unsplash.com/photo-1531072955165-c7bb84311a76',
-            'https://images.unsplash.com/photo-1502082553048-f009c37129b9',
-            'https://images.unsplash.com/photo-1560421683-6856ea585c78',
-            'https://images.unsplash.com/photo-1447752875215-b2761acb3c5d',
-            'https://images.unsplash.com/photo-1579546929518-9e396f3cc809',
-            'https://images.unsplash.com/photo-1507525428034-b723cf961d3e',
-            'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05'
-        ];
-
         const standardMoods = {
             anxious: [
                 { t: '"Do not be anxious about anything, but in every situation present your requests to God."', r: 'Philippians 4:6', c: "Paul reminds us that the best remedy for a spinning mind is handing those specific worries over to God in prayer." },
@@ -729,21 +796,13 @@
             { id: 'hope', name: '12. Radiant Future Hope', desc: 'Looking forward to great plans ahead.', v: '"Hope does not put us to shame."', ref: 'Romans 5:5', c: "God's promises are secure; trusting Him will never let you down." }
         ];
 
-/* --- AUTOMATIC NIV TAGGER --- */
-        // This instantly adds " (NIV)" to the end of every reference in the app!
-        
+        /* --- AUTOMATIC NIV TAGGER --- */
         standardDailyVerses.forEach(verse => verse.r += " (NIV)");
         kidsDailyVerses.forEach(verse => verse.r += " (NIV)");
-        
-        Object.values(standardMoods).forEach(moodArray => {
-            moodArray.forEach(verse => verse.r += " (NIV)");
-        });
-        
-        Object.values(kidsMoods).forEach(moodArray => {
-            moodArray.forEach(verse => verse.r += " (NIV)");
-        });
-        
+        Object.values(standardMoods).forEach(moodArray => moodArray.forEach(verse => verse.r += " (NIV)"));
+        Object.values(kidsMoods).forEach(moodArray => moodArray.forEach(verse => verse.r += " (NIV)"));
         readingPlansDatabase.forEach(plan => plan.ref += " (NIV)");
+
         let activeTourStep = 1;
         const tourStepsDatabase = [
             { title: "Welcome to VerseFlow", icon: "👋", desc: "Your personal, distraction-free space for daily scripture engagement, reflection, and habit building. Let's take a quick tour to help you get the most out of it!" },
@@ -793,6 +852,32 @@
             confetti({ particleCount: 60, spread: 50 });
         }
 
+        const regularBackgrounds = [
+            'https://images.unsplash.com/photo-1506744038136-46273834b3fb',
+            'https://images.unsplash.com/photo-1464222759023-fed622ff2c3b',
+            'https://images.unsplash.com/photo-1501854140801-50d01698950b',
+            'https://images.unsplash.com/photo-1472214103451-9374bd1c798e',
+            'https://images.unsplash.com/photo-1444464666168-49b628800582',
+            'https://images.unsplash.com/photo-1433086966358-54859d0ed716',
+            'https://images.unsplash.com/photo-1475924156734-496f6cac6ec1',
+            'https://images.unsplash.com/photo-1534447677768-be436bb09401',
+            'https://images.unsplash.com/photo-1490682143684-1436ce2a13b8',
+            'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee',
+            'https://images.unsplash.com/photo-1441974231531-c6227db76b6e',
+            'https://images.unsplash.com/photo-1454496522488-7a8e488e8606'
+        ];
+
+        const kidsBackgrounds = [
+            'https://images.unsplash.com/photo-1513151233558-d860c5398176',
+            'https://images.unsplash.com/photo-1531072955165-c7bb84311a76',
+            'https://images.unsplash.com/photo-1502082553048-f009c37129b9',
+            'https://images.unsplash.com/photo-1560421683-6856ea585c78',
+            'https://images.unsplash.com/photo-1447752875215-b2761acb3c5d',
+            'https://images.unsplash.com/photo-1579546929518-9e396f3cc809',
+            'https://images.unsplash.com/photo-1507525428034-b723cf961d3e',
+            'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05'
+        ];
+
         function rebuildBackgroundThumbnails() {
             const container = document.getElementById('bgContainer');
             container.innerHTML = '';
@@ -811,6 +896,47 @@
             });
             changeBackground(`${activeSet[0]}?auto=format&fit=crop&w=1400&q=80`);
         }
+
+        function getDailyVerse(isKids) {
+            const now = new Date();
+            const start = new Date(now.getFullYear(), 0, 0);
+            const diff = now - start;
+            const oneDay = 1000 * 60 * 60 * 24;
+            const dayOfYear = Math.floor(diff / oneDay);
+            
+            const arrayToUse = isKids ? kidsDailyVerses : [...standardDailyVerses, ...customUserImportedVerses];
+            return arrayToUse[dayOfYear % arrayToUse.length];
+        }
+
+        function importCustomUserVerse() {
+            const txt = document.getElementById('importVerseText').value.trim();
+            const ref = document.getElementById('importVerseRef').value.trim();
+            if(!txt || !ref) return alert("Fill in text content and scriptural location parameters.");
+            
+            customUserImportedVerses.push({ t: `"${txt}"`, r: ref, c: "A personal verse imported by you." });
+            localStorage.setItem('verseFlowCustomPool', JSON.stringify(customUserImportedVerses));
+            
+            document.getElementById('importVerseText').value = '';
+            document.getElementById('importVerseRef').value = '';
+            
+            localStorage.setItem('verseFlowCustomImported', 'true');
+            alert("Scripture successfully injected into rotation system pools.");
+            if (currentUser) saveDataToCloud(currentUser.uid);
+        }
+
+        function shuffleVerse() {
+            const pool = isKidsModeActive ? kidsDailyVerses : [...standardDailyVerses, ...customUserImportedVerses];
+            const randIdx = Math.floor(Math.random() * pool.length);
+            currentVerseText = pool[randIdx].t;
+            currentVerseRef = pool[randIdx].r;
+            currentVerseContext = pool[randIdx].c || "A beautiful scripture to reflect on.";
+            updateScreen();
+        }
+
+        let currentVerseText = "";
+        let currentVerseRef = "";
+        let currentVerseContext = "";
+        let activeSelectedGameID = 0;
 
         function toggleFlipCard() {
             document.getElementById('flipCardInner').classList.toggle('is-flipped');
@@ -905,6 +1031,7 @@
             closeModal('plansModal');
             localStorage.setItem('verseFlowPlansStarted', 'true');
             alert(`Plan loaded successfully!`);
+            if (currentUser) saveDataToCloud(currentUser.uid);
         }
 
         function stopPlan() {
@@ -1004,6 +1131,7 @@
             localStorage.setItem('verseFlowGratitudeAbsolute', absoluteTotal);
             
             confetti({ particleCount: 15, spread: 40, origin: { y: 0.1, x: 0.2 } });
+            if (currentUser) saveDataToCloud(currentUser.uid);
         }
 
         let fadeTimerInterval = null;
@@ -1160,6 +1288,7 @@
             let played = parseInt(localStorage.getItem('verseFlowGamesPlayed')) || 0;
             played++;
             localStorage.setItem('verseFlowGamesPlayed', played);
+            if (currentUser) saveDataToCloud(currentUser.uid);
         }
 
         function evaluateBadgesEngine() {
@@ -1193,6 +1322,7 @@
             localStorage.setItem('verseFlowTodos', JSON.stringify(dailyTodos));
             input.value = '';
             renderTodos();
+            if (currentUser) saveDataToCloud(currentUser.uid);
         }
 
         function deleteTodo(index, event) {
@@ -1200,6 +1330,7 @@
             dailyTodos.splice(index, 1);
             localStorage.setItem('verseFlowTodos', JSON.stringify(dailyTodos));
             renderTodos();
+            if (currentUser) saveDataToCloud(currentUser.uid);
         }
 
         function checkDailyTodoReset() {
@@ -1211,6 +1342,7 @@
                 localStorage.setItem('verseFlowTodos', JSON.stringify(dailyTodos));
                 localStorage.setItem('verseFlowTodoDate', today);
                 localStorage.setItem('verseFlowHabitsAllDoneToday', 'false');
+                if (currentUser) saveDataToCloud(currentUser.uid);
             }
         }
 
@@ -1223,6 +1355,7 @@
                 localStorage.setItem('verseFlowHabitsAllDoneToday', 'true');
                 confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
             }
+            if (currentUser) saveDataToCloud(currentUser.uid);
         }
 
         function renderTodos() {
@@ -1388,6 +1521,7 @@
             }
             localStorage.setItem('savedVerses', JSON.stringify(savedVerses));
             updateLikeButtonUIState();
+            if (currentUser) saveDataToCloud(currentUser.uid);
         }
 
         function removeVerseFromSavedList(index) {
@@ -1395,12 +1529,14 @@
             localStorage.setItem('savedVerses', JSON.stringify(savedVerses));
             renderSavedVerses();
             updateLikeButtonUIState();
+            if (currentUser) saveDataToCloud(currentUser.uid);
         }
         
         function toggleHighlightVerse(index) {
             savedVerses[index].highlighted = !savedVerses[index].highlighted;
             localStorage.setItem('savedVerses', JSON.stringify(savedVerses));
             renderSavedVerses();
+            if (currentUser) saveDataToCloud(currentUser.uid);
         }
 
         function assignTagToVerse(index) {
@@ -1411,6 +1547,7 @@
             savedVerses[index].tag = promptTag.replace('#', '').trim();
             localStorage.setItem('savedVerses', JSON.stringify(savedVerses));
             renderSavedVerses();
+            if (currentUser) saveDataToCloud(currentUser.uid);
         }
 
         function updateLikeButtonUIState() {
@@ -1471,12 +1608,14 @@
             localStorage.setItem('prayerEntries', JSON.stringify(prayerEntries));
             document.getElementById('prayerEntry').value = '';
             renderPrayers();
+            if (currentUser) saveDataToCloud(currentUser.uid);
         }
 
         function removePrayer(index) {
             prayerEntries.splice(index, 1);
             localStorage.setItem('prayerEntries', JSON.stringify(prayerEntries));
             renderPrayers();
+            if (currentUser) saveDataToCloud(currentUser.uid);
         }
 
         function renderPrayers() {
@@ -1506,12 +1645,14 @@
             localStorage.setItem('journalEntries', JSON.stringify(journalEntries));
             document.getElementById('journalEntry').value = '';
             renderJournal();
+            if (currentUser) saveDataToCloud(currentUser.uid);
         }
         
         function removeJournalEntry(index) {
             journalEntries.splice(index, 1);
             localStorage.setItem('journalEntries', JSON.stringify(journalEntries));
             renderJournal();
+            if (currentUser) saveDataToCloud(currentUser.uid);
         }
 
         function renderJournal() {
@@ -1558,6 +1699,7 @@
             localStorage.setItem('verseFlowLastOpened', today.getTime().toString());
             localStorage.setItem('verseFlowStreak', currentStreak);
             document.getElementById('streakCount').innerText = currentStreak;
+            if (currentUser) saveDataToCloud(currentUser.uid);
         }
 
         function updateScreen() {
@@ -1565,13 +1707,10 @@
             document.getElementById('referenceDisplay').innerText = currentVerseRef;
             document.getElementById('contextDisplay').innerText = currentVerseContext;
             
-            // Force the card to flip back to the front if a new verse is loaded
             document.getElementById('flipCardInner').classList.remove('is-flipped');
-            
             updateLikeButtonUIState();
         }
 
-        /* --- BACKUP & RESTORE ENGINE --- */
         function exportAppData() {
             let appData = {};
             for (let i = 0; i < localStorage.length; i++) {
